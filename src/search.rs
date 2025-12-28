@@ -2,6 +2,7 @@ use crate::{
     evaluation::correct_eval,
     movepick::{MovePicker, Stage},
     parameters::PIECE_VALUES,
+    stack::STACK_OFFSET,
     tb::{tb_probe, tb_rank_rootmoves, tb_size, GameOutcome},
     thread::{RootMove, ThreadData},
     transposition::{Bound, TtDepth},
@@ -121,7 +122,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
             }
 
             loop {
-                td.stack = Default::default();
+                init_stack(td);
                 td.root_delta = beta - alpha;
 
                 // Root Search
@@ -1323,4 +1324,17 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
 fn undo_move(td: &mut ThreadData, mv: Move) {
     td.nnue.pop();
     td.board.undo_move(mv);
+}
+
+fn init_stack(td: &mut ThreadData) {
+    td.stack = Default::default();
+    for i in 1..=STACK_OFFSET.min(td.prehistory.len() as isize) {
+        let ph = &td.prehistory[td.prehistory.len() - i as usize];
+        td.stack[-i].mv = ph.mv;
+        td.stack[-i].piece = ph.moved_piece;
+        td.stack[-i].conthist =
+            td.continuation_history.subtable_ptr(ph.in_check, ph.mv.is_capture(), ph.moved_piece, ph.mv.to());
+        td.stack[-i].contcorrhist =
+            td.continuation_corrhist.subtable_ptr(ph.in_check, ph.mv.is_capture(), ph.moved_piece, ph.mv.to());
+    }
 }

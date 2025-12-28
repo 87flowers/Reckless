@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     board::Board,
+    prehistory::Prehistory,
     search::{self, Report},
     tb::tb_initialize,
     thread::{SharedContext, Status, ThreadData},
@@ -218,6 +219,7 @@ fn go(threads: &mut ThreadPool, settings: &Settings, shared: &Arc<SharedContext>
 
 fn position(threads: &mut ThreadPool, settings: &Settings, mut tokens: &[&str]) {
     let mut board = Board::default();
+    let mut prehistory = Vec::<Prehistory>::new();
 
     while !tokens.is_empty() {
         match tokens {
@@ -235,7 +237,7 @@ fn position(threads: &mut ThreadPool, settings: &Settings, mut tokens: &[&str]) 
             }
             ["moves", rest @ ..] => {
                 for uci_move in rest {
-                    make_uci_move(&mut board, uci_move);
+                    make_uci_move(&mut board, &mut prehistory, uci_move);
                 }
                 break;
             }
@@ -248,12 +250,14 @@ fn position(threads: &mut ThreadPool, settings: &Settings, mut tokens: &[&str]) 
 
     for thread in threads.iter_mut() {
         thread.board = board.clone();
+        thread.prehistory = prehistory.clone();
     }
 }
 
-fn make_uci_move(board: &mut Board, uci_move: &str) {
+fn make_uci_move(board: &mut Board, prehistory: &mut Vec<Prehistory>, uci_move: &str) {
     let moves = board.generate_all_moves();
     if let Some(mv) = moves.iter().map(|entry| entry.mv).find(|mv| mv.to_uci(board) == uci_move) {
+        prehistory.push(Prehistory::new(board, mv));
         board.make_move(mv, |_, _, _, _| ());
         board.advance_fullmove_counter();
     }

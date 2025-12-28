@@ -9,6 +9,7 @@ mod misc;
 mod movepick;
 mod nnue;
 mod parameters;
+mod prehistory;
 mod search;
 mod stack;
 mod tb;
