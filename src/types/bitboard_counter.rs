@@ -1,29 +1,35 @@
 use crate::types::Bitboard;
+use core::arch::x86_64::__m512i;
+use std::arch::x86_64::{
+    _mm512_add_epi8, _mm512_cmpneq_epi8_mask, _mm512_maskz_set1_epi8, _mm512_setzero_si512, _mm512_sub_epi8,
+};
 
-#[derive(Copy, Clone, Default, Eq, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct BitboardCounter {
-    bb: [Bitboard; 4],
+    bb: __m512i,
 }
 
-fn adder(a: Bitboard, b: Bitboard, c: Bitboard) -> (Bitboard, Bitboard) {
-    (a ^ b ^ c, (a & b) | (c & (a ^ b)))
+impl Default for BitboardCounter {
+    fn default() -> Self {
+        BitboardCounter { bb: unsafe { _mm512_setzero_si512() } }
+    }
 }
 
 impl BitboardCounter {
     pub fn update(&mut self, delta: [Bitboard; 2]) {
-        let [sub, add] = delta;
-        let mut carry: Bitboard;
-        (self.bb[0], carry) = adder(self.bb[0], sub, add);
-        (self.bb[1], carry) = adder(self.bb[1], sub, carry);
-        (self.bb[2], carry) = adder(self.bb[2], sub, carry);
-        (self.bb[3], _) = adder(self.bb[3], sub, carry);
+        unsafe {
+            self.bb = _mm512_sub_epi8(self.bb, _mm512_maskz_set1_epi8(delta[0].0, 1));
+            self.bb = _mm512_add_epi8(self.bb, _mm512_maskz_set1_epi8(delta[1].0, 1));
+        }
     }
 
     pub fn add(&mut self, delta: Bitboard) {
-        self.update([Bitboard::default(), delta]);
+        unsafe {
+            self.bb = _mm512_add_epi8(self.bb, _mm512_maskz_set1_epi8(delta.0, 1));
+        }
     }
 
     pub fn reduce(&self) -> Bitboard {
-        self.bb[0] | self.bb[1] | self.bb[2] | self.bb[3]
+        Bitboard(unsafe { _mm512_cmpneq_epi8_mask(self.bb, _mm512_setzero_si512()) })
     }
 }
