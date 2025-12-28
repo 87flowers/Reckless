@@ -14,6 +14,8 @@ mod movegen;
 mod parser;
 mod see;
 
+pub use makemove::*;
+
 /// Captures essential information needed to efficiently revert the board to
 /// a previous position after making a move.
 ///

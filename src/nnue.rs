@@ -4,7 +4,7 @@ mod threats;
 pub use threats::initialize;
 
 use crate::{
-    board::Board,
+    board::{Board, BoardObserver},
     lookup::{attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
     nnue::accumulator::{ThreatAccumulator, ThreatDelta},
     types::{Color, Move, Piece, PieceType, Square, MAX_PLY},
@@ -107,7 +107,7 @@ impl Network {
         self.threat_stack[self.index].delta.clear();
     }
 
-    pub fn push_threats(&mut self, board: &Board, piece: Piece, square: Square, add: bool) {
+    fn push_threats(&mut self, board: &Board, piece: Piece, square: Square, add: bool) {
         let deltas = &mut self.threat_stack[self.index].delta;
 
         let attacked = attacks(piece, square, board.occupancies()) & board.occupancies();
@@ -143,6 +143,44 @@ impl Network {
 
         for from in black_pawns | white_pawns | knights | kings {
             deltas.push(ThreatDelta::new(board.piece_on(from), from, piece, square, add));
+        }
+    }
+
+    fn mutate_threats(&mut self, board: &Board, old_piece: Piece, new_piece: Piece, square: Square) {
+        let deltas = &mut self.threat_stack[self.index].delta;
+
+        for to in attacks(old_piece, square, board.occupancies()) & board.occupancies() {
+            let attacked = board.piece_on(to);
+            deltas.push(ThreatDelta::new(old_piece, square, attacked, to, false));
+        }
+
+        for to in attacks(new_piece, square, board.occupancies()) & board.occupancies() {
+            let attacked = board.piece_on(to);
+            deltas.push(ThreatDelta::new(new_piece, square, attacked, to, true));
+        }
+
+        let rook_attacks = rook_attacks(square, board.occupancies());
+        let bishop_attacks = bishop_attacks(square, board.occupancies());
+
+        let diagonal = (board.pieces(PieceType::Bishop) | board.pieces(PieceType::Queen)) & bishop_attacks;
+        let orthogonal = (board.pieces(PieceType::Rook) | board.pieces(PieceType::Queen)) & rook_attacks;
+
+        for from in diagonal | orthogonal {
+            let sliding_piece = board.piece_on(from);
+
+            deltas.push(ThreatDelta::new(sliding_piece, from, old_piece, square, false));
+            deltas.push(ThreatDelta::new(sliding_piece, from, new_piece, square, true));
+        }
+
+        let black_pawns = board.of(PieceType::Pawn, Color::Black) & pawn_attacks(square, Color::White);
+        let white_pawns = board.of(PieceType::Pawn, Color::White) & pawn_attacks(square, Color::Black);
+
+        let knights = board.pieces(PieceType::Knight) & knight_attacks(square);
+        let kings = board.pieces(PieceType::King) & king_attacks(square);
+
+        for from in black_pawns | white_pawns | knights | kings {
+            deltas.push(ThreatDelta::new(board.piece_on(from), from, old_piece, square, false));
+            deltas.push(ThreatDelta::new(board.piece_on(from), from, new_piece, square, true));
         }
     }
 
@@ -284,6 +322,16 @@ impl Default for Network {
             cache: AccumulatorCache::default(),
             nnz_table: nnz_table.into_boxed_slice(),
         }
+    }
+}
+
+impl BoardObserver for Network {
+    fn on_piece_change(&mut self, board: &Board, piece: Piece, square: Square, add: bool) {
+        self.push_threats(board, piece, square, add);
+    }
+
+    fn on_piece_mutate(&mut self, board: &Board, old_piece: Piece, new_piece: Piece, square: Square) {
+        self.mutate_threats(board, old_piece, new_piece, square);
     }
 }
 
