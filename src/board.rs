@@ -1,9 +1,11 @@
 use crate::{
     lookup::{
         attacks, between, bishop_attacks, cuckoo, cuckoo_a, cuckoo_b, h1, h2, king_attacks, knight_attacks,
-        pawn_attacks, pawn_attacks_setwise, queen_attacks, rook_attacks,
+        pawn_attacks, queen_attacks, rook_attacks, shadow,
     },
-    types::{ArrayVec, Bitboard, Castling, CastlingKind, Color, Move, Piece, PieceType, Square, ZOBRIST},
+    types::{
+        ArrayVec, Bitboard, BitboardCounter, Castling, CastlingKind, Color, Move, Piece, PieceType, Square, ZOBRIST,
+    },
 };
 
 #[cfg(test)]
@@ -13,6 +15,20 @@ mod makemove;
 mod movegen;
 mod parser;
 mod see;
+
+pub trait BoardObserver {
+    fn on_piece_change(&mut self, board: &Board, piece: Piece, square: Square, add: bool);
+    fn get_threat_bitboard(&self, board: &Board, color: Color) -> Bitboard;
+}
+
+pub struct NullBoardObserver {}
+
+impl BoardObserver for NullBoardObserver {
+    fn on_piece_change(&mut self, _board: &Board, _piece: Piece, _square: Square, _add: bool) {}
+    fn get_threat_bitboard(&self, board: &Board, color: Color) -> Bitboard {
+        board.calculate_threat_counts()[color as usize].reduce()
+    }
+}
 
 /// Captures essential information needed to efficiently revert the board to
 /// a previous position after making a move.
@@ -457,7 +473,7 @@ impl Board {
         direct_attacks.contains(self.their(PieceType::King).lsb())
     }
 
-    pub fn update_threats(&mut self) {
+    pub fn update_threats<T: BoardObserver>(&mut self, observer: &T) {
         // The king is excluded from the occupancy bitboard when computing threats,
         // letting sliders "see through" it as if the king weren't blocking their path.
         //
@@ -466,25 +482,50 @@ impl Board {
         // history remains unaffected by this change.
         //
         // This "hack" is used to speed up the implementation of `Board::is_legal`.
-        let occupancies = self.occupancies() ^ self.our(PieceType::King);
+        //
+        // This must be called *after* update_king_threats.
 
-        let mut threats = Bitboard::default();
+        self.state.threats = observer.get_threat_bitboard(self, !self.side_to_move);
 
-        threats |= pawn_attacks_setwise(self.their(PieceType::Pawn), !self.side_to_move);
+        let king_sq = self.king_square(self.side_to_move);
+        let king_ring = king_attacks(king_sq);
+        for checker in self.state.checkers {
+            if self.piece_on(checker).is_slider() {
+                self.state.threats |= king_ring & shadow(checker, king_sq);
+            }
+        }
+    }
 
-        for square in self.their(PieceType::Knight) {
-            threats |= knight_attacks(square);
+    pub fn calculate_threat_counts(&self) -> [BitboardCounter; Color::NUM] {
+        let mut threat_counters = [BitboardCounter::default(); Color::NUM];
+
+        for color in [Color::White, Color::Black] {
+            let threats = &mut threat_counters[color as usize];
+
+            let occupancies = self.occupancies();
+
+            for square in self.of(PieceType::Pawn, color) {
+                threats.add(pawn_attacks(square, color));
+            }
+
+            for square in self.of(PieceType::Knight, color) {
+                threats.add(knight_attacks(square));
+            }
+
+            for square in self.of(PieceType::Bishop, color) | self.of(PieceType::Queen, color) {
+                threats.add(bishop_attacks(square, occupancies));
+            }
+
+            for square in self.of(PieceType::Rook, color) | self.of(PieceType::Queen, color) {
+                threats.add(rook_attacks(square, occupancies));
+            }
+
+            for square in self.of(PieceType::King, color) {
+                threats.add(king_attacks(square));
+            }
         }
 
-        for square in self.their(PieceType::Bishop) | self.their(PieceType::Queen) {
-            threats |= bishop_attacks(square, occupancies);
-        }
-
-        for square in self.their(PieceType::Rook) | self.their(PieceType::Queen) {
-            threats |= rook_attacks(square, occupancies);
-        }
-
-        self.state.threats = threats | king_attacks(self.their(PieceType::King).lsb());
+        threat_counters
     }
 
     /// Updates the checkers bitboard to mark opponent pieces currently threatening our king,

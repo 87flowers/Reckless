@@ -58,6 +58,10 @@ impl Piece {
     pub const fn piece_type(self) -> PieceType {
         unsafe { std::mem::transmute((self as u8) >> 1) }
     }
+
+    pub const fn is_slider(self) -> bool {
+        self as u8 >= Piece::WhiteBishop as u8 && self as u8 <= Piece::BlackQueen as u8
+    }
 }
 
 impl TryFrom<char> for Piece {

@@ -4,10 +4,10 @@ mod threats;
 pub use threats::initialize;
 
 use crate::{
-    board::Board,
-    lookup::{attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
+    board::{Board, BoardObserver},
+    lookup::{attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks, shadow},
     nnue::accumulator::{ThreatAccumulator, ThreatDelta},
-    types::{Color, Move, Piece, PieceType, Square, MAX_PLY},
+    types::{Bitboard, BitboardCounter, Color, Move, Piece, PieceType, Square, MAX_PLY},
 };
 
 use accumulator::{AccumulatorCache, PstAccumulator};
@@ -90,6 +90,7 @@ pub struct Network {
     threat_stack: Box<[ThreatAccumulator]>,
     cache: AccumulatorCache,
     nnz_table: Box<[SparseEntry]>,
+    threats_counters: Box<[[BitboardCounter; Color::NUM]]>,
 }
 
 impl Network {
@@ -105,9 +106,13 @@ impl Network {
 
         self.threat_stack[self.index].accurate = [false; 2];
         self.threat_stack[self.index].delta.clear();
+
+        self.threats_counters[self.index] = self.threats_counters[self.index - 1];
     }
 
     pub fn push_threats(&mut self, board: &Board, piece: Piece, square: Square, add: bool) {
+        let mut bb_diff = [[Bitboard::default(); 2]; Color::NUM];
+
         let deltas = &mut self.threat_stack[self.index].delta;
 
         let attacked = attacks(piece, square, board.occupancies()) & board.occupancies();
@@ -116,6 +121,7 @@ impl Network {
             let attacked = board.piece_on(to);
             deltas.push(ThreatDelta::new(piece, square, attacked, to, add));
         }
+        bb_diff[piece.piece_color() as usize][add as usize] |= attacks(piece, square, board.occupancies());
 
         let rook_attacks = rook_attacks(square, board.occupancies());
         let bishop_attacks = bishop_attacks(square, board.occupancies());
@@ -133,6 +139,8 @@ impl Network {
             }
 
             deltas.push(ThreatDelta::new(sliding_piece, from, piece, square, add));
+
+            bb_diff[sliding_piece.piece_color() as usize][!add as usize] |= queen_attacks & shadow(from, square);
         }
 
         let black_pawns = board.of(PieceType::Pawn, Color::Black) & pawn_attacks(square, Color::White);
@@ -144,6 +152,9 @@ impl Network {
         for from in black_pawns | white_pawns | knights | kings {
             deltas.push(ThreatDelta::new(board.piece_on(from), from, piece, square, add));
         }
+
+        self.threats_counters[self.index][0].update(bb_diff[0]);
+        self.threats_counters[self.index][1].update(bb_diff[1]);
     }
 
     pub fn pop(&mut self) {
@@ -156,6 +167,8 @@ impl Network {
 
         self.threat_stack[self.index].refresh(board, Color::White);
         self.threat_stack[self.index].refresh(board, Color::Black);
+
+        self.threats_counters[self.index] = board.calculate_threat_counts();
     }
 
     pub fn evaluate(&mut self, board: &Board) -> i32 {
@@ -179,6 +192,10 @@ impl Network {
         }
 
         self.output_transformer(board)
+    }
+
+    pub fn threat_bitboard(&self, color: Color) -> Bitboard {
+        self.threats_counters[self.index][color as usize].reduce()
     }
 
     fn update_pst_accumulator(&mut self, accurate: usize, board: &Board, pov: Color) {
@@ -283,7 +300,20 @@ impl Default for Network {
             threat_stack: vec![ThreatAccumulator::new(); MAX_PLY].into_boxed_slice(),
             cache: AccumulatorCache::default(),
             nnz_table: nnz_table.into_boxed_slice(),
+            threats_counters: vec![[BitboardCounter::default(); Color::NUM]; MAX_PLY].into_boxed_slice(),
         }
+    }
+}
+
+impl BoardObserver for Network {
+    fn on_piece_change(&mut self, board: &Board, piece: Piece, square: Square, add: bool) {
+        self.push_threats(board, piece, square, add);
+    }
+
+    fn get_threat_bitboard(&self, board: &Board, color: Color) -> Bitboard {
+        let bb = self.threat_bitboard(color);
+        debug_assert_eq!(bb, board.calculate_threat_counts()[color as usize].reduce());
+        bb
     }
 }
 

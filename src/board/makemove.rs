@@ -1,11 +1,12 @@
 use super::Board;
 use crate::{
+    board::BoardObserver,
     parameters::PIECE_VALUES,
     types::{Bitboard, Move, MoveKind, Piece, PieceType, Square, ZOBRIST},
 };
 
 impl Board {
-    pub fn make_null_move(&mut self) {
+    pub fn make_null_move<T: BoardObserver>(&mut self, observer: &mut T) {
         self.side_to_move = !self.side_to_move;
         self.state_stack.push(self.state);
 
@@ -17,7 +18,7 @@ impl Board {
         self.state.recapture_square = Square::None;
         self.state.checkers = Bitboard::default();
 
-        self.update_threats();
+        self.update_threats(observer);
 
         if self.state.en_passant != Square::None {
             self.state.key ^= ZOBRIST.en_passant[self.state.en_passant];
@@ -34,7 +35,7 @@ impl Board {
     ///
     /// This method assumes the move has been validated as pseudo-legal and legal
     /// per `Board::is_pseudo_legal` and `Board::is_legal`.
-    pub fn make_move<F: FnMut(&Board, Piece, Square, bool)>(&mut self, mv: Move, mut on_piece_change: F) {
+    pub fn make_move<T: BoardObserver>(&mut self, mv: Move, observer: &mut T) {
         let from = mv.from();
         let to = mv.to();
         let piece = self.piece_on(from);
@@ -64,7 +65,7 @@ impl Board {
         let captured = self.piece_on(to);
         if captured != Piece::None && !mv.is_castling() {
             self.remove_piece(captured, to);
-            on_piece_change(self, captured, to, false);
+            observer.on_piece_change(self, captured, to, false);
 
             self.update_hash(captured, to);
 
@@ -75,10 +76,10 @@ impl Board {
 
         if !mv.is_castling() {
             self.remove_piece(piece, from);
-            on_piece_change(self, piece, from, false);
+            observer.on_piece_change(self, piece, from, false);
 
             self.add_piece(piece, to);
-            on_piece_change(self, piece, to, true);
+            observer.on_piece_change(self, piece, to, true);
         }
 
         self.update_hash(piece, from);
@@ -93,7 +94,7 @@ impl Board {
                 let captured = Piece::new(!stm, PieceType::Pawn);
 
                 self.remove_piece(captured, to ^ 8);
-                on_piece_change(self, captured, to ^ 8, false);
+                observer.on_piece_change(self, captured, to ^ 8, false);
 
                 self.update_hash(captured, to ^ 8);
 
@@ -104,16 +105,16 @@ impl Board {
                 let rook = Piece::new(stm, PieceType::Rook);
 
                 self.remove_piece(rook, rook_from);
-                on_piece_change(self, rook, rook_from, false);
+                observer.on_piece_change(self, rook, rook_from, false);
 
                 self.remove_piece(piece, from);
-                on_piece_change(self, piece, from, false);
+                observer.on_piece_change(self, piece, from, false);
 
                 self.add_piece(rook, rook_to);
-                on_piece_change(self, rook, rook_to, true);
+                observer.on_piece_change(self, rook, rook_to, true);
 
                 self.add_piece(piece, to);
-                on_piece_change(self, piece, to, true);
+                observer.on_piece_change(self, piece, to, true);
 
                 self.update_hash(rook, rook_from);
                 self.update_hash(rook, rook_to);
@@ -122,10 +123,10 @@ impl Board {
                 let promotion = Piece::new(stm, mv.promotion_piece().unwrap());
 
                 self.remove_piece(piece, to);
-                on_piece_change(self, piece, to, false);
+                observer.on_piece_change(self, piece, to, false);
 
                 self.add_piece(promotion, to);
-                on_piece_change(self, promotion, to, true);
+                observer.on_piece_change(self, promotion, to, true);
 
                 self.update_hash(piece, to);
                 self.update_hash(promotion, to);
@@ -140,8 +141,8 @@ impl Board {
         self.state.castling.raw &= self.castling_rights[from] & self.castling_rights[to];
         self.state.key ^= ZOBRIST.castling[self.state.castling];
 
-        self.update_threats();
         self.update_king_threats();
+        self.update_threats(observer);
 
         self.state.repetition = 0;
 

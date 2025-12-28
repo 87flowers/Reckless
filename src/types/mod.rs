@@ -1,5 +1,6 @@
 pub mod arrayvec;
 pub mod bitboard;
+pub mod bitboard_counter;
 pub mod castling;
 pub mod color;
 pub mod movelist;
@@ -11,6 +12,7 @@ pub mod zobrist;
 
 pub use arrayvec::*;
 pub use bitboard::*;
+pub use bitboard_counter::*;
 pub use castling::*;
 pub use color::*;
 pub use movelist::*;

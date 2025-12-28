@@ -530,11 +530,11 @@ fn search<NODE: NodeType>(
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
 
-        td.board.make_null_move();
+        make_null_move(td);
 
         let score = -search::<NonPV>(td, -beta, -beta + 1, depth - r, false, ply + 1);
 
-        td.board.undo_null_move();
+        undo_null_move(td);
 
         if td.stopped {
             return Score::ZERO;
@@ -1304,6 +1304,14 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
     }
 }
 
+fn make_null_move(td: &mut ThreadData) {
+    td.board.make_null_move(&mut td.nnue);
+}
+
+fn undo_null_move(td: &mut ThreadData) {
+    td.board.undo_null_move();
+}
+
 fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
     td.stack[ply].mv = mv;
     td.stack[ply].piece = td.board.moved_piece(mv);
@@ -1315,7 +1323,7 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
     td.shared.nodes.increment(td.id);
 
     td.nnue.push(mv, &td.board);
-    td.board.make_move(mv, |board, piece, square, add| td.nnue.push_threats(board, piece, square, add));
+    td.board.make_move(mv, &mut td.nnue);
 
     td.shared.tt.prefetch(td.board.hash());
 }

@@ -5,7 +5,7 @@ use super::{File, Rank, Square};
 /// Represents a 64-bit unsigned integer with each bit indicating square occupancy.
 ///
 /// See [Bitboards](https://www.chessprogramming.org/Bitboards) for more information.
-#[derive(Copy, Clone, Eq, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 #[repr(transparent)]
 pub struct Bitboard(pub u64);
 
