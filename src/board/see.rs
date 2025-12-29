@@ -103,6 +103,7 @@ impl super::Board {
         }
     }
 
+    #[cfg(not(target_feature = "avx512f"))]
     fn least_valuable_attacker(&self, attackers: Bitboard) -> PieceType {
         for index in 0..PieceType::NUM {
             let piece = PieceType::new(index);
@@ -111,5 +112,19 @@ impl super::Board {
             }
         }
         unreachable!();
+    }
+
+    #[cfg(target_feature = "avx512f")]
+    fn least_valuable_attacker(&self, attackers: Bitboard) -> PieceType {
+        unsafe {
+            use std::arch::x86_64::*;
+
+            let pieces = _mm512_maskz_loadu_epi64(0x3F, self.pieces.as_ptr().cast());
+            let bit = _mm512_cmpneq_epi64_mask(
+                _mm512_and_si512(pieces, _mm512_set1_epi64(attackers.0 as i64)),
+                _mm512_setzero_si512(),
+            );
+            PieceType::new(bit.trailing_zeros() as usize)
+        }
     }
 }
