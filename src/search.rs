@@ -2,6 +2,7 @@ use crate::{
     evaluation::correct_eval,
     movepick::{MovePicker, Stage},
     parameters::PIECE_VALUES,
+    stack::STACK_OFFSET,
     tb::{tb_probe, tb_rank_rootmoves, tb_size, GameOutcome},
     thread::{RootMove, ThreadData},
     transposition::{Bound, TtDepth},
@@ -121,7 +122,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
             }
 
             loop {
-                td.stack = Default::default();
+                init_stack(td);
                 td.root_delta = beta - alpha;
 
                 // Root Search
@@ -525,8 +526,8 @@ fn search<NODE: NodeType>(
 
         let r = (6582 + 273 * depth) / 1024;
 
-        td.stack[ply].conthist = td.stack.sentinel().conthist;
-        td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
+        td.stack[ply].conthist = &mut td.conthist_null_move_sentinel;
+        td.stack[ply].contcorrhist = &mut td.contcorrhist_null_move_sentinel;
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
 
@@ -1336,4 +1337,14 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
 fn undo_move(td: &mut ThreadData, mv: Move) {
     td.nnue.pop();
     td.board.undo_move(mv);
+}
+
+fn init_stack(td: &mut ThreadData) {
+    td.stack = Default::default();
+    for i in 1..=STACK_OFFSET {
+        td.stack[-i].conthist = &mut td.conthist_low_ply_sentinel;
+        td.stack[-i].contcorrhist = &mut td.contcorrhist_low_ply_sentinel;
+    }
+    td.conthist_null_move_sentinel = [[0; 64]; 13];
+    td.contcorrhist_null_move_sentinel = [[0; 64]; 13];
 }

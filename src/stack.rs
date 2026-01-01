@@ -2,14 +2,10 @@ use std::ops::{Index, IndexMut};
 
 use crate::types::{Move, Piece, Score, MAX_PLY};
 
+pub const STACK_OFFSET: isize = 8;
+
 pub struct Stack {
     data: [StackEntry; MAX_PLY + 16],
-}
-
-impl Stack {
-    pub fn sentinel(&mut self) -> &mut StackEntry {
-        unsafe { self.data.get_unchecked_mut(0) }
-    }
 }
 
 impl Default for Stack {
@@ -59,14 +55,14 @@ impl Index<isize> for Stack {
     type Output = StackEntry;
 
     fn index(&self, index: isize) -> &Self::Output {
-        debug_assert!(index + 8 >= 0 && index < MAX_PLY as isize + 16);
-        unsafe { self.data.get_unchecked((index + 8) as usize) }
+        debug_assert!(index + STACK_OFFSET >= 0 && index < MAX_PLY as isize + 16);
+        unsafe { self.data.get_unchecked((index + STACK_OFFSET) as usize) }
     }
 }
 
 impl IndexMut<isize> for Stack {
     fn index_mut(&mut self, index: isize) -> &mut Self::Output {
-        debug_assert!(index + 8 >= 0 && index < MAX_PLY as isize + 16);
-        unsafe { self.data.get_unchecked_mut((index + 8) as usize) }
+        debug_assert!(index + STACK_OFFSET >= 0 && index < MAX_PLY as isize + 16);
+        unsafe { self.data.get_unchecked_mut((index + STACK_OFFSET) as usize) }
     }
 }
