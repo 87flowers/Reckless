@@ -166,9 +166,13 @@ impl Network {
         deltas: &mut ArrayVec<ThreatDelta, 80>, is_to: bool, board: &Board, bb: Bitboard, p2: Piece, sq2: Square,
         add: bool,
     ) {
-        use std::arch::x86_64::*;
+        if bb.is_empty() {
+            return;
+        }
 
         unsafe {
+            use std::arch::x86_64::*;
+
             let add = (add as u32) << 31;
             let add = _mm512_set1_epi32(add as i32);
 
