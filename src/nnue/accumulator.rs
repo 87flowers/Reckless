@@ -338,40 +338,49 @@ impl ThreatAccumulator {
             let mut add_idx = 0;
             let mut sub_idx = 0;
 
-            while add_idx < adds.len() && sub_idx < subs.len() {
-                let add = adds[add_idx];
-                let sub = subs[sub_idx];
-
-                let vadd = PARAMETERS.ft_threat_weights[add].as_ptr().add(offset);
-                let vsub = PARAMETERS.ft_threat_weights[sub].as_ptr().add(offset);
+            while add_idx + 1 < adds.len() {
+                let weights0 = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
+                let weights1 = PARAMETERS.ft_threat_weights[adds[add_idx + 1]].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
-                    let add_weights = simd::convert_i8_i16(*vadd.add(i * simd::I16_LANES).cast());
-                    let sub_weights = simd::convert_i8_i16(*vsub.add(i * simd::I16_LANES).cast());
-                    *register = simd::sub_i16(simd::add_i16(*register, add_weights), sub_weights);
+                    let w0 = simd::convert_i8_i16(*weights0.add(i * simd::I16_LANES).cast());
+                    let w1 = simd::convert_i8_i16(*weights1.add(i * simd::I16_LANES).cast());
+                    *register = simd::add_i16(simd::add_i16(*register, w0), w1);
                 }
 
-                add_idx += 1;
-                sub_idx += 1;
+                add_idx += 2;
             }
 
             while add_idx < adds.len() {
-                let vadd = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
+                let weights = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
-                    let add_weights = simd::convert_i8_i16(*vadd.add(i * simd::I16_LANES).cast());
-                    *register = simd::add_i16(*register, add_weights);
+                    let w = simd::convert_i8_i16(*weights.add(i * simd::I16_LANES).cast());
+                    *register = simd::add_i16(*register, w);
                 }
 
                 add_idx += 1;
             }
 
-            while sub_idx < subs.len() {
-                let vsub = PARAMETERS.ft_threat_weights[subs[sub_idx]].as_ptr().add(offset);
+            while sub_idx + 1 < subs.len() {
+                let weights0 = PARAMETERS.ft_threat_weights[subs[sub_idx]].as_ptr().add(offset);
+                let weights1 = PARAMETERS.ft_threat_weights[subs[sub_idx + 1]].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
-                    let sub_weights = simd::convert_i8_i16(*vsub.add(i * simd::I16_LANES).cast());
-                    *register = simd::sub_i16(*register, sub_weights);
+                    let w0 = simd::convert_i8_i16(*weights0.add(i * simd::I16_LANES).cast());
+                    let w1 = simd::convert_i8_i16(*weights1.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(simd::sub_i16(*register, w0), w1);
+                }
+
+                sub_idx += 2;
+            }
+
+            while sub_idx < subs.len() {
+                let weights = PARAMETERS.ft_threat_weights[subs[sub_idx]].as_ptr().add(offset);
+
+                for (i, register) in registers.iter_mut().enumerate() {
+                    let w = simd::convert_i8_i16(*weights.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, w);
                 }
 
                 sub_idx += 1;
