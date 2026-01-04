@@ -234,14 +234,8 @@ pub struct ThreatDelta(u32);
 
 impl ThreatDelta {
     #[allow(dead_code)]
-    pub fn new(piece: Piece, from: Square, attacked: Piece, to: Square, add: bool) -> Self {
-        Self(
-            piece as u32
-                | ((from as u32) << 8)
-                | ((attacked as u32) << 16)
-                | ((to as u32) << 24)
-                | ((add as u32) << 31),
-        )
+    pub fn new(piece: Piece, from: Square, attacked: Piece, to: Square) -> Self {
+        Self(piece as u32 | ((from as u32) << 8) | ((attacked as u32) << 16) | ((to as u32) << 24))
     }
 
     pub fn piece(self) -> Piece {
@@ -257,18 +251,14 @@ impl ThreatDelta {
     }
 
     pub fn to(self) -> Square {
-        unsafe { std::mem::transmute(((self.0 >> 24) & 0x7F) as u8) }
-    }
-
-    pub fn add(self) -> bool {
-        self.0 >> 31 != 0
+        unsafe { std::mem::transmute((self.0 >> 24) as u8) }
     }
 }
 
 #[derive(Clone)]
 pub struct ThreatAccumulator {
     pub values: Aligned<[[i16; L1_SIZE]; 2]>,
-    pub delta: ArrayVec<ThreatDelta, 80>,
+    pub delta: [ArrayVec<ThreatDelta, 80>; 2],
     pub accurate: [bool; 2],
 }
 
@@ -276,7 +266,7 @@ impl ThreatAccumulator {
     pub fn new() -> Self {
         Self {
             values: Aligned::new([[0; L1_SIZE]; 2]),
-            delta: ArrayVec::new(),
+            delta: [ArrayVec::new(), ArrayVec::new()],
             accurate: [false; 2],
         }
     }
@@ -308,16 +298,20 @@ impl ThreatAccumulator {
         let mut adds = ArrayVec::<usize, 256>::new();
         let mut subs = ArrayVec::<usize, 256>::new();
 
-        for &td in self.delta.iter() {
-            let (piece, from, attacked, to, add) = (td.piece(), td.from(), td.attacked(), td.to(), td.add());
+        for &td in self.delta[0].iter() {
+            let (piece, from, attacked, to) = (td.piece(), td.from(), td.attacked(), td.to());
             let mirrored = king.file() >= 4;
 
             let index = threat_index(piece, from, attacked, to, mirrored, pov);
-            if add {
-                adds.maybe_push(index >= 0, index as usize);
-            } else {
-                subs.maybe_push(index >= 0, index as usize);
-            }
+            subs.maybe_push(index >= 0, index as usize);
+        }
+
+        for &td in self.delta[1].iter() {
+            let (piece, from, attacked, to) = (td.piece(), td.from(), td.attacked(), td.to());
+            let mirrored = king.file() >= 4;
+
+            let index = threat_index(piece, from, attacked, to, mirrored, pov);
+            adds.maybe_push(index >= 0, index as usize);
         }
 
         #[cfg(target_feature = "avx512f")]

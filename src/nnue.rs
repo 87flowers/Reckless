@@ -111,7 +111,9 @@ impl Network {
         self.pst_stack[self.index].delta.captured = board.piece_on(mv.to());
 
         self.threat_stack[self.index].accurate = [false; 2];
-        self.threat_stack[self.index].delta.clear();
+        for delta in self.threat_stack[self.index].delta.iter_mut() {
+            delta.clear();
+        }
     }
 
     #[cfg(not(all(
@@ -129,7 +131,7 @@ impl Network {
 
         let attacked = attacks(piece, square, board.occupancies()) & board.occupancies();
         for to in attacked {
-            deltas.push(ThreatDelta::new(piece, square, board.piece_on(to), to, add));
+            deltas[add as usize].push(ThreatDelta::new(piece, square, board.piece_on(to), to));
         }
 
         let rook_attacks = rook_attacks(square, board.occupancies());
@@ -144,10 +146,10 @@ impl Network {
             let threatened = ray_pass(from, square) & board.occupancies() & queen_attacks;
 
             if let Some(to) = threatened.into_iter().next() {
-                deltas.push(ThreatDelta::new(sliding_piece, from, board.piece_on(to), to, !add));
+                deltas[!add as usize].push(ThreatDelta::new(sliding_piece, from, board.piece_on(to), to));
             }
 
-            deltas.push(ThreatDelta::new(sliding_piece, from, piece, square, add));
+            deltas[add as usize].push(ThreatDelta::new(sliding_piece, from, piece, square));
         }
 
         let black_pawns = board.of(PieceType::Pawn, Color::Black) & pawn_attacks(square, Color::White);
@@ -157,7 +159,7 @@ impl Network {
         let kings = board.pieces(PieceType::King) & king_attacks(square);
 
         for from in black_pawns | white_pawns | knights | kings {
-            deltas.push(ThreatDelta::new(board.piece_on(from), from, piece, square, add));
+            deltas[add as usize].push(ThreatDelta::new(board.piece_on(from), from, piece, square));
         }
     }
 
@@ -182,14 +184,11 @@ impl Network {
         let attackers = attackers_along_rays(rays) & closest;
         let sliders = sliders_along_rays(rays) & closest;
 
-        Self::splat_threats(deltas, true, pboard, perm, attacked, piece, square, add);
-        Self::splat_threats(deltas, false, pboard, perm, attackers, piece, square, add);
+        Self::splat_threats(&mut deltas[add as usize], true, pboard, perm, attacked, piece, square);
+        Self::splat_threats(&mut deltas[add as usize], false, pboard, perm, attackers, piece, square);
 
         // Deal with x-rays
         unsafe {
-            let nadd = (!add as u32) << 31;
-            let nadd = _mm_set1_epi32(nadd as i32);
-
             let victim_mask = (closest & 0xFEFEFEFEFEFEFEFE).rotate_right(32);
             let xray_valid = ray_fill(victim_mask) & ray_fill(sliders);
 
@@ -203,9 +202,9 @@ impl Network {
             let pair1 = _mm_unpacklo_epi8(p1, sq1);
             let pair2 = _mm_unpacklo_epi8(p2, sq2);
 
-            deltas.unchecked_write(|data| {
-                _mm_storeu_si128(data.cast(), _mm_or_si128(_mm_unpacklo_epi16(pair1, pair2), nadd));
-                _mm_storeu_si128(data.add(4).cast(), _mm_or_si128(_mm_unpackhi_epi16(pair1, pair2), nadd));
+            deltas[!add as usize].unchecked_write(|data| {
+                _mm_storeu_si128(data.cast(), _mm_unpacklo_epi16(pair1, pair2));
+                _mm_storeu_si128(data.add(4).cast(), _mm_unpackhi_epi16(pair1, pair2));
                 (sliders & xray_valid).count_ones() as usize
             });
         }
@@ -218,17 +217,13 @@ impl Network {
         target_feature = "gfni",
         target_feature = "avx512vbmi"
     ))]
-    #[allow(clippy::too_many_arguments)]
     fn splat_threats(
         deltas: &mut crate::types::ArrayVec<ThreatDelta, 80>, is_to: bool, pboard: std::arch::x86_64::__m512i,
-        perm: std::arch::x86_64::__m512i, bitray: u64, p2: Piece, sq2: Square, add: bool,
+        perm: std::arch::x86_64::__m512i, bitray: u64, p2: Piece, sq2: Square,
     ) {
         use std::arch::x86_64::*;
 
         unsafe {
-            let add = (add as u32) << 31;
-            let add = _mm512_set1_epi32(add as i32);
-
             let template = {
                 let pair = p2 as u16 | ((sq2 as u16) << 8);
                 _mm512_set1_epi16(pair as i16)
@@ -246,7 +241,7 @@ impl Network {
             let widen = _mm512_permutex2var_epi8(mailbox, idx, iota);
             let mask = if is_to { 0xCCCCCCCCCCCCCCCC } else { 0x3333333333333333 };
 
-            let vector = _mm512_or_si512(_mm512_mask_mov_epi8(template, mask, widen), add);
+            let vector = _mm512_mask_mov_epi8(template, mask, widen);
 
             deltas.unchecked_write(|data| {
                 _mm512_storeu_si512(data.cast(), vector);
