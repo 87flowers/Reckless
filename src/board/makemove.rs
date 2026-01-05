@@ -46,51 +46,63 @@ impl Board {
         self.state.key ^= ZOBRIST.castling[self.state.castling];
         self.state.key ^= ZOBRIST.side;
 
-        if self.state.en_passant != Square::None {
-            self.state.key ^= ZOBRIST.en_passant[self.state.en_passant];
-            self.state.en_passant = Square::None;
-        }
+        self.state.key ^=
+            if self.state.en_passant != Square::None { ZOBRIST.en_passant[self.state.en_passant as usize] } else { 0 };
+        self.state.en_passant = Square::None;
 
         self.state.captured = None;
         self.state.recapture_square = Square::None;
 
-        if mv.kind() == MoveKind::Capture || pt == PieceType::Pawn {
-            self.state.halfmove_clock = 0;
-        } else {
-            self.state.halfmove_clock += 1;
-        }
+        self.state.halfmove_clock += 1;
         self.state.plies_from_null += 1;
-
-        let captured = self.piece_on(to);
-        if captured != Piece::None && !mv.is_castling() {
-            self.remove_piece(piece, from);
-            observer.on_piece_change(self, piece, from, false);
-
-            self.remove_piece(captured, to);
-            self.add_piece(piece, to);
-            observer.on_piece_mutate(self, captured, piece, to);
-
-            self.update_hash(captured, to);
-
-            self.state.material -= PIECE_VALUES[captured.piece_type()];
-            self.state.captured = Some(captured);
-            self.state.recapture_square = to;
-        } else if !mv.is_castling() {
-            self.remove_piece(piece, from);
-            self.add_piece(piece, to);
-            observer.on_piece_move(self, piece, from, to);
-        }
 
         self.update_hash(piece, from);
         self.update_hash(piece, to);
 
         match mv.kind() {
+            MoveKind::Normal => {
+                self.remove_piece(piece, from);
+                self.add_piece(piece, to);
+                observer.on_piece_move(self, piece, from, piece, to);
+
+                if pt == PieceType::Pawn {
+                    self.state.halfmove_clock = 0;
+                }
+            }
+            MoveKind::Capture => {
+                let captured = self.piece_on(to);
+
+                self.remove_piece(piece, from);
+                observer.on_piece_change(self, piece, from, false);
+
+                self.remove_piece(captured, to);
+                self.add_piece(piece, to);
+                observer.on_piece_mutate(self, captured, piece, to);
+
+                self.update_hash(captured, to);
+
+                self.state.material -= PIECE_VALUES[captured.piece_type()];
+                self.state.captured = Some(captured);
+                self.state.recapture_square = to;
+
+                self.state.halfmove_clock = 0;
+            }
             MoveKind::DoublePush => {
+                self.remove_piece(piece, from);
+                self.add_piece(piece, to);
+                observer.on_piece_move(self, piece, from, piece, to);
+
                 self.state.en_passant = Square::new((from as u8 + to as u8) / 2);
                 self.state.key ^= ZOBRIST.en_passant[self.state.en_passant];
+
+                self.state.halfmove_clock = 0;
             }
             MoveKind::EnPassant => {
                 let captured = Piece::new(!stm, PieceType::Pawn);
+
+                self.remove_piece(piece, from);
+                self.add_piece(piece, to);
+                observer.on_piece_move(self, piece, from, piece, to);
 
                 self.remove_piece(captured, to ^ 8);
                 observer.on_piece_change(self, captured, to ^ 8, false);
@@ -98,6 +110,8 @@ impl Board {
                 self.update_hash(captured, to ^ 8);
 
                 self.state.material -= PIECE_VALUES[captured.piece_type()];
+
+                self.state.halfmove_clock = 0;
             }
             MoveKind::Castling => {
                 let (rook_from, rook_to) = self.get_castling_rook(to);
@@ -118,21 +132,45 @@ impl Board {
                 self.update_hash(rook, rook_from);
                 self.update_hash(rook, rook_to);
             }
-            _ if mv.is_promotion() => {
+            MoveKind::PromotionQ | MoveKind::PromotionR | MoveKind::PromotionB | MoveKind::PromotionN => {
                 let promotion = Piece::new(stm, mv.promotion_piece().unwrap());
 
-                self.remove_piece(piece, to);
-                observer.on_piece_change(self, piece, to, false);
-
+                self.remove_piece(piece, from);
                 self.add_piece(promotion, to);
-                observer.on_piece_change(self, promotion, to, true);
+                observer.on_piece_move(self, piece, from, promotion, to);
 
                 self.update_hash(piece, to);
                 self.update_hash(promotion, to);
 
                 self.state.material += PIECE_VALUES[promotion.piece_type()] - PIECE_VALUES[PieceType::Pawn];
+
+                self.state.halfmove_clock = 0;
             }
-            _ => (),
+            MoveKind::PromotionCaptureQ
+            | MoveKind::PromotionCaptureR
+            | MoveKind::PromotionCaptureB
+            | MoveKind::PromotionCaptureN => {
+                let captured = self.piece_on(to);
+                let promotion = Piece::new(stm, mv.promotion_piece().unwrap());
+
+                self.remove_piece(piece, from);
+                observer.on_piece_change(self, piece, from, false);
+
+                self.remove_piece(captured, to);
+                self.add_piece(promotion, to);
+                observer.on_piece_mutate(self, captured, promotion, to);
+
+                self.update_hash(piece, to);
+                self.update_hash(promotion, to);
+                self.update_hash(captured, to);
+
+                self.state.material -= PIECE_VALUES[captured.piece_type()];
+                self.state.material += PIECE_VALUES[promotion.piece_type()] - PIECE_VALUES[PieceType::Pawn];
+                self.state.captured = Some(captured);
+                self.state.recapture_square = to;
+
+                self.state.halfmove_clock = 0;
+            }
         }
 
         self.side_to_move = !self.side_to_move;

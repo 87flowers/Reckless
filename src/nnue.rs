@@ -130,10 +130,12 @@ impl Network {
         target_feature = "gfni",
         target_feature = "avx512vbmi"
     )))]
-    pub fn push_threats_on_move(&mut self, board: &Board, piece: Piece, from: Square, to: Square) {
+    pub fn push_threats_on_move(
+        &mut self, board: &Board, old_piece: Piece, from: Square, new_piece: Piece, to: Square,
+    ) {
         let occupancies = board.occupancies() ^ to.to_bb();
-        self.push_threats_single(board, occupancies, piece, from, false);
-        self.push_threats_single(board, occupancies, piece, to, true);
+        self.push_threats_single(board, occupancies, old_piece, from, false);
+        self.push_threats_single(board, occupancies, new_piece, to, true);
     }
 
     #[cfg(not(all(
@@ -283,7 +285,9 @@ impl Network {
         target_feature = "gfni",
         target_feature = "avx512vbmi"
     ))]
-    pub fn push_threats_on_move(&mut self, board: &Board, piece: Piece, src: Square, dst: Square) {
+    pub fn push_threats_on_move(
+        &mut self, board: &Board, src_piece: Piece, src: Square, dst_piece: Piece, dst: Square,
+    ) {
         use rays::*;
         use std::arch::x86_64::*;
 
@@ -302,17 +306,17 @@ impl Network {
 
         let src_closest = closest_on_rays(src_occupied);
         let dst_closest = closest_on_rays(dst_occupied);
-        let src_attacked = attacking_along_rays(piece, src_closest);
-        let dst_attacked = attacking_along_rays(piece, dst_closest);
+        let src_attacked = attacking_along_rays(src_piece, src_closest);
+        let dst_attacked = attacking_along_rays(dst_piece, dst_closest);
         let src_attackers = attackers_along_rays(src_rays) & src_closest;
         let dst_attackers = attackers_along_rays(dst_rays) & dst_closest;
         let src_sliders = sliders_along_rays(src_rays) & src_closest;
         let dst_sliders = sliders_along_rays(dst_rays) & dst_closest;
 
-        Self::splat_threats(deltas, true, src_pboard, src_perm, src_attacked, piece, src, false);
-        Self::splat_threats(deltas, false, src_pboard, src_perm, src_attackers, piece, src, false);
-        Self::splat_threats(deltas, true, dst_pboard, dst_perm, dst_attacked, piece, dst, true);
-        Self::splat_threats(deltas, false, dst_pboard, dst_perm, dst_attackers, piece, dst, true);
+        Self::splat_threats(deltas, true, src_pboard, src_perm, src_attacked, src_piece, src, false);
+        Self::splat_threats(deltas, false, src_pboard, src_perm, src_attackers, src_piece, src, false);
+        Self::splat_threats(deltas, true, dst_pboard, dst_perm, dst_attacked, dst_piece, dst, true);
+        Self::splat_threats(deltas, false, dst_pboard, dst_perm, dst_attackers, dst_piece, dst, true);
 
         // Deal with x-rays
         unsafe {
@@ -566,8 +570,8 @@ impl Default for Network {
 }
 
 impl BoardObserver for Network {
-    fn on_piece_move(&mut self, board: &Board, piece: Piece, from: Square, to: Square) {
-        self.push_threats_on_move(board, piece, from, to);
+    fn on_piece_move(&mut self, board: &Board, old_piece: Piece, from: Square, new_piece: Piece, to: Square) {
+        self.push_threats_on_move(board, old_piece, from, new_piece, to);
     }
 
     fn on_piece_mutate(&mut self, board: &Board, old_piece: Piece, new_piece: Piece, square: Square) {
