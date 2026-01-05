@@ -62,100 +62,62 @@ pub fn board_to_rays(perm: __m512i, valid: u64, board: __m512i) -> (__m512i, __m
 }
 
 pub fn attackers_along_rays(victim: Piece, rays: __m512i) -> u64 {
-    const MASK: [[u8; 64]; 12] = {
-        let horse = 0b00000100; // knight
-        let orth = 0b00110000; // rook and queen
-        let diag = 0b00101000; // bishop and queen
-        let ortho_near = 0b01110000; // king, rook and queen
-        let wpawn_near = 0b01101001; // wp, king, bishop, queen
-        let bpawn_near = 0b01101010; // bp, king, bishop, queen
+    const HORSE: u8 = 0b00000100; // knight
+    const ORTH: u8 = 0b00110000; // rook and queen
+    const DIAG: u8 = 0b00101000; // bishop and queen
+    const ORTHO_NEAR: u8 = 0b01110000; // king, rook and queen
+    const WPAWN_NEAR: u8 = 0b01101001; // wp, king, bishop, queen
+    const BPAWN_NEAR: u8 = 0b01101010; // bp, king, bishop, queen
 
-        let base: [u8; 64] = [
-            horse, ortho_near, orth, orth, orth, orth, orth, orth, // N
-            horse, bpawn_near, diag, diag, diag, diag, diag, diag, // NE
-            horse, ortho_near, orth, orth, orth, orth, orth, orth, // E
-            horse, wpawn_near, diag, diag, diag, diag, diag, diag, // SE
-            horse, ortho_near, orth, orth, orth, orth, orth, orth, // S
-            horse, wpawn_near, diag, diag, diag, diag, diag, diag, // SW
-            horse, ortho_near, orth, orth, orth, orth, orth, orth, // W
-            horse, bpawn_near, diag, diag, diag, diag, diag, diag, // NW
-        ];
+    const MASK: [u8; 64] = [
+        HORSE, ORTHO_NEAR, ORTH, ORTH, ORTH, ORTH, ORTH, ORTH, // N
+        HORSE, BPAWN_NEAR, DIAG, DIAG, DIAG, DIAG, DIAG, DIAG, // NE
+        HORSE, ORTHO_NEAR, ORTH, ORTH, ORTH, ORTH, ORTH, ORTH, // E
+        HORSE, WPAWN_NEAR, DIAG, DIAG, DIAG, DIAG, DIAG, DIAG, // SE
+        HORSE, ORTHO_NEAR, ORTH, ORTH, ORTH, ORTH, ORTH, ORTH, // S
+        HORSE, WPAWN_NEAR, DIAG, DIAG, DIAG, DIAG, DIAG, DIAG, // SW
+        HORSE, ORTHO_NEAR, ORTH, ORTH, ORTH, ORTH, ORTH, ORTH, // W
+        HORSE, BPAWN_NEAR, DIAG, DIAG, DIAG, DIAG, DIAG, DIAG, // NW
+    ];
 
-        let exclude = [
-            0b00000000, // WhitePawn
-            0b00000000, // BlackPawn
-            0b00000000, // WhiteKnight
-            0b00000000, // BlackKnight
-            0b00000011, // WhiteBishop
-            0b00000011, // BlackBishop
-            0b00000000, // WhiteRook
-            0b00000000, // BlackRook
-            0b01011011, // WhiteQueen
-            0b01011011, // BlackQueen
-            0b01000011, // WhiteKing
-            0b01000011, // BlackKing
-        ];
-
-        let mut mask = [[0u8; 64]; 12];
-        let mut p = 0;
-        while p < 12 {
-            let mut i = 0;
-            while i < 64 {
-                mask[p][i] = base[i];
-                mask[p][i] &= !exclude[p];
-                i += 1;
-            }
-            p += 1;
-        }
-
-        mask
-    };
+    const INCLUDE: [i8; 6] = [
+        0b01111111, // Pawn
+        0b01111111, // Knight
+        0b01111100, // Bishop
+        0b01111111, // Rook
+        0b00100100, // Queen
+        0b00111100, // King
+    ];
 
     unsafe {
-        let mask = _mm512_loadu_si512(MASK[victim as usize].as_ptr().cast());
+        let mask = _mm512_and_si512(
+            _mm512_loadu_si512(MASK.as_ptr().cast()),
+            _mm512_set1_epi8(INCLUDE[victim.piece_type() as usize]),
+        );
 
         _mm512_test_epi8_mask(rays, mask)
     }
 }
 
 pub fn attacking_along_rays(attacker: Piece, rays: __m512i) -> u64 {
-    const MASK: [[u8; 64]; 12] = {
-        let lut: [(u64, u8); 12] = [
-            (0x02_00_00_00_00_00_02_00, 0b01101000), // WhitePawn
-            (0x00_00_02_00_02_00_00_00, 0b01101000), // BlackPawn
-            (0x01_01_01_01_01_01_01_01, 0b00000000), // WhiteKnight
-            (0x01_01_01_01_01_01_01_01, 0b00000000), // BlackKnight
-            (0xFE_00_FE_00_FE_00_FE_00, 0b00100000), // WhiteBishop
-            (0xFE_00_FE_00_FE_00_FE_00, 0b00100000), // BlackBishop
-            (0x00_FE_00_FE_00_FE_00_FE, 0b00100000), // WhiteRook
-            (0x00_FE_00_FE_00_FE_00_FE, 0b00100000), // BlackRook
-            (0xFE_FE_FE_FE_FE_FE_FE_FE, 0b00000000), // WhiteQueen
-            (0xFE_FE_FE_FE_FE_FE_FE_FE, 0b00000000), // BlackQueen
-            (0x02_02_02_02_02_02_02_02, 0b01100000), // WhiteKing
-            (0x02_02_02_02_02_02_02_02, 0b01100000), // BlackKing
-        ];
-
-        let mut mask = [[0u8; 64]; 12];
-        let mut p = 0;
-        while p < 12 {
-            let (bits, exclude) = lut[p];
-            let mut i = 0;
-            while i < 64 {
-                if (bits >> i) & 1 != 0 {
-                    mask[p][i] = 0x7F;
-                    mask[p][i] &= !exclude;
-                }
-                i += 1;
-            }
-            p += 1;
-        }
-
-        mask
-    };
+    const LUT: [(u64, i8); 12] = [
+        (0x02_00_00_00_00_00_02_00, 0b00010111), // WhitePawn
+        (0x00_00_02_00_02_00_00_00, 0b00010111), // BlackPawn
+        (0x01_01_01_01_01_01_01_01, 0b01111111), // WhiteKnight
+        (0x01_01_01_01_01_01_01_01, 0b01111111), // BlackKnight
+        (0xFE_00_FE_00_FE_00_FE_00, 0b01011111), // WhiteBishop
+        (0xFE_00_FE_00_FE_00_FE_00, 0b01011111), // BlackBishop
+        (0x00_FE_00_FE_00_FE_00_FE, 0b01011111), // WhiteRook
+        (0x00_FE_00_FE_00_FE_00_FE, 0b01011111), // BlackRook
+        (0xFE_FE_FE_FE_FE_FE_FE_FE, 0b01111111), // WhiteQueen
+        (0xFE_FE_FE_FE_FE_FE_FE_FE, 0b01111111), // BlackQueen
+        (0x02_02_02_02_02_02_02_02, 0b00011111), // WhiteKing
+        (0x02_02_02_02_02_02_02_02, 0b00011111), // BlackKing
+    ];
 
     unsafe {
-        let mask = _mm512_loadu_si512(MASK[attacker as usize].as_ptr().cast());
-
+        let (mask, include) = LUT[attacker as usize];
+        let mask = _mm512_maskz_set1_epi8(mask, include);
         _mm512_test_epi8_mask(rays, mask)
     }
 }
