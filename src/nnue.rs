@@ -242,8 +242,8 @@ impl Network {
         let occupied = unsafe { _mm512_test_epi8_mask(rays, rays) };
 
         let closest = closest_on_rays(occupied);
-        let attacked = attacking_along_rays(piece, closest);
-        let attackers = attackers_along_rays(rays) & closest;
+        let attacked = attacking_along_rays(piece, rays) & closest;
+        let attackers = attackers_along_rays(piece, rays) & closest;
         let sliders = sliders_along_rays(rays) & closest;
 
         Self::splat_threats(deltas, true, pboard, perm, attacked, piece, square, add);
@@ -302,10 +302,10 @@ impl Network {
 
         let src_closest = closest_on_rays(src_occupied);
         let dst_closest = closest_on_rays(dst_occupied);
-        let src_attacked = attacking_along_rays(piece, src_closest);
-        let dst_attacked = attacking_along_rays(piece, dst_closest);
-        let src_attackers = attackers_along_rays(src_rays) & src_closest;
-        let dst_attackers = attackers_along_rays(dst_rays) & dst_closest;
+        let src_attacked = attacking_along_rays(piece, src_rays) & src_closest;
+        let dst_attacked = attacking_along_rays(piece, dst_rays) & dst_closest;
+        let src_attackers = attackers_along_rays(piece, src_rays) & src_closest;
+        let dst_attackers = attackers_along_rays(piece, dst_rays) & dst_closest;
         let src_sliders = sliders_along_rays(src_rays) & src_closest;
         let dst_sliders = sliders_along_rays(dst_rays) & dst_closest;
 
@@ -370,14 +370,15 @@ impl Network {
         let occupied = unsafe { _mm512_test_epi8_mask(rays, rays) };
 
         let closest = closest_on_rays(occupied);
-        let old_attacked = attacking_along_rays(old_piece, closest);
-        let new_attacked = attacking_along_rays(new_piece, closest);
-        let attackers = attackers_along_rays(rays) & closest;
+        let old_attacked = attacking_along_rays(old_piece, rays) & closest;
+        let new_attacked = attacking_along_rays(new_piece, rays) & closest;
+        let old_attackers = attackers_along_rays(old_piece, rays) & closest;
+        let new_attackers = attackers_along_rays(new_piece, rays) & closest;
 
         Self::splat_threats(deltas, true, pboard, perm, old_attacked, old_piece, square, false);
-        Self::splat_threats(deltas, false, pboard, perm, attackers, old_piece, square, false);
+        Self::splat_threats(deltas, false, pboard, perm, old_attackers, old_piece, square, false);
         Self::splat_threats(deltas, true, pboard, perm, new_attacked, new_piece, square, true);
-        Self::splat_threats(deltas, false, pboard, perm, attackers, new_piece, square, true);
+        Self::splat_threats(deltas, false, pboard, perm, new_attackers, new_piece, square, true);
     }
 
     #[inline]

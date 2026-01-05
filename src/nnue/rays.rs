@@ -61,8 +61,8 @@ pub fn board_to_rays(perm: __m512i, valid: u64, board: __m512i) -> (__m512i, __m
     }
 }
 
-pub fn attackers_along_rays(rays: __m512i) -> u64 {
-    unsafe {
+pub fn attackers_along_rays(victim: Piece, rays: __m512i) -> u64 {
+    let mask: [[u8; 64]; 12] = {
         let horse = 0b00000100; // knight
         let orth = 0b00110000; // rook and queen
         let diag = 0b00101000; // bishop and queen
@@ -70,7 +70,7 @@ pub fn attackers_along_rays(rays: __m512i) -> u64 {
         let wpawn_near = 0b01101001; // wp, king, bishop, queen
         let bpawn_near = 0b01101010; // bp, king, bishop, queen
 
-        let mask: [u8; 64] = [
+        let base: [u8; 64] = [
             horse, ortho_near, orth, orth, orth, orth, orth, orth, // N
             horse, bpawn_near, diag, diag, diag, diag, diag, diag, // NE
             horse, ortho_near, orth, orth, orth, orth, orth, orth, // E
@@ -80,29 +80,73 @@ pub fn attackers_along_rays(rays: __m512i) -> u64 {
             horse, ortho_near, orth, orth, orth, orth, orth, orth, // W
             horse, bpawn_near, diag, diag, diag, diag, diag, diag, // NW
         ];
-        let mask = _mm512_loadu_si512(mask.as_ptr().cast());
+
+        let make = |exclude: u8| {
+            let mut mask = [0u8; 64];
+            for i in 0..64 {
+                mask[i] = base[i];
+                mask[i] &= !exclude;
+            }
+            mask
+        };
+
+        [
+            make(0b00000000), // WhitePawn
+            make(0b00000000), // BlackPawn
+            make(0b00000000), // WhiteKnight
+            make(0b00000000), // BlackKnight
+            make(0b00000011), // WhiteBishop
+            make(0b00000011), // BlackBishop
+            make(0b00000000), // WhiteRook
+            make(0b00000000), // BlackRook
+            make(0b01011011), // WhiteQueen
+            make(0b01011011), // BlackQueen
+            make(0b01000011), // WhiteKing
+            make(0b01000011), // BlackKing
+        ]
+    };
+
+    unsafe {
+        let mask = _mm512_loadu_si512(mask[victim as usize].as_ptr().cast());
 
         _mm512_test_epi8_mask(rays, mask)
     }
 }
 
-pub fn attacking_along_rays(piece: Piece, occupied: u64) -> u64 {
-    let lut: [u64; 12] = [
-        0x02_00_00_00_00_00_02_00, // WhitePawn
-        0x00_00_02_00_02_00_00_00, // BlackPawn
-        0x01_01_01_01_01_01_01_01, // WhiteKnight
-        0x01_01_01_01_01_01_01_01, // BlackKnight
-        0xFE_00_FE_00_FE_00_FE_00, // WhiteBishop
-        0xFE_00_FE_00_FE_00_FE_00, // BlackBishop
-        0x00_FE_00_FE_00_FE_00_FE, // WhiteRook
-        0x00_FE_00_FE_00_FE_00_FE, // BlackRook
-        0xFE_FE_FE_FE_FE_FE_FE_FE, // WhiteQueen
-        0xFE_FE_FE_FE_FE_FE_FE_FE, // BlackQueen
-        0x02_02_02_02_02_02_02_02, // WhiteKing
-        0x02_02_02_02_02_02_02_02, // BlackKing
-    ];
+pub fn attacking_along_rays(attacker: Piece, rays: __m512i) -> u64 {
+    let mask: [[u8; 64]; 12] = {
+        let make = |bits: u64, exclude: u8| {
+            let mut mask = [0u8; 64];
+            for i in 0..64 {
+                if (bits >> i) & 1 != 0 {
+                    mask[i] = 0x7F;
+                    mask[i] &= !exclude;
+                }
+            }
+            mask
+        };
 
-    lut[piece as usize] & occupied
+        [
+            make(0x02_00_00_00_00_00_02_00, 0b01101000), // WhitePawn
+            make(0x00_00_02_00_02_00_00_00, 0b01101000), // BlackPawn
+            make(0x01_01_01_01_01_01_01_01, 0b00000000), // WhiteKnight
+            make(0x01_01_01_01_01_01_01_01, 0b00000000), // BlackKnight
+            make(0xFE_00_FE_00_FE_00_FE_00, 0b00100000), // WhiteBishop
+            make(0xFE_00_FE_00_FE_00_FE_00, 0b00100000), // BlackBishop
+            make(0x00_FE_00_FE_00_FE_00_FE, 0b00100000), // WhiteRook
+            make(0x00_FE_00_FE_00_FE_00_FE, 0b00100000), // BlackRook
+            make(0xFE_FE_FE_FE_FE_FE_FE_FE, 0b00000000), // WhiteQueen
+            make(0xFE_FE_FE_FE_FE_FE_FE_FE, 0b00000000), // BlackQueen
+            make(0x02_02_02_02_02_02_02_02, 0b01100000), // WhiteKing
+            make(0x02_02_02_02_02_02_02_02, 0b01100000), // BlackKing
+        ]
+    };
+
+    unsafe {
+        let mask = _mm512_loadu_si512(mask[attacker as usize].as_ptr().cast());
+
+        _mm512_test_epi8_mask(rays, mask)
+    }
 }
 
 pub fn sliders_along_rays(rays: __m512i) -> u64 {
