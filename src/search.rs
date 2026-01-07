@@ -501,10 +501,10 @@ fn search<NODE: NodeType>(
         && tt_bound == Bound::Upper
         && depth >= 7
         && tt_depth >= depth - 3
-        && tt_score <= alpha - 300
+        && tt_score <= alpha - 150
         && alpha < 2048
     {
-        return alpha - 300;
+        return alpha - 150;
     }
 
     // Reverse Futility Pruning (RFP)
