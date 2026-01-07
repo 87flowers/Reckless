@@ -498,12 +498,13 @@ fn search<NODE: NodeType>(
     if !NODE::PV
         && is_valid(tt_score)
         && !is_decisive(tt_score)
-        && tt_bound != Bound::Lower
+        && tt_bound == Bound::Upper
         && depth >= 7
         && tt_depth >= depth - 3
         && tt_score <= alpha - 300
+        && alpha < 2048
     {
-        return alpha - 300;
+        return tt_score;
     }
 
     // Reverse Futility Pruning (RFP)
