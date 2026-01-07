@@ -989,8 +989,9 @@ fn search<NODE: NodeType>(
         let noisy_malus = (173 * initial_depth - 53).min(1257) - 23 * noisy_moves.len() as i32;
 
         let quiet_bonus =
-            (179 * depth - 85).min(1335) - 56 * cut_node as i32 + 3 * td.stack[ply + 1].cutoff_count.min(2) * depth;
-        let quiet_malus = (156 * initial_depth - 44).min(1056) - 41 * quiet_moves.len() as i32;
+            (170 * depth - 72).min(1335) - 56 * cut_node as i32 + 10 * td.stack[ply + 1].cutoff_count.min(2) * depth;
+        let quiet_malus = (147 * initial_depth - 41).min(1056) - 41 * quiet_moves.len() as i32
+            + 10 * td.stack[ply + 1].cutoff_count.min(2) * depth;
 
         let cont_bonus = (115 * depth - 67).min(972) - 50 * cut_node as i32;
         let cont_malus = (343 * initial_depth - 47).min(856) - 21 * quiet_moves.len() as i32;
