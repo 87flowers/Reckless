@@ -495,7 +495,7 @@ fn search<NODE: NodeType>(
     }
 
     // Small Alpha Probcut
-    if !NODE::PV
+    if !tt_pv
         && is_valid(tt_score)
         && !is_decisive(tt_score)
         && tt_bound == Bound::Upper
@@ -504,7 +504,7 @@ fn search<NODE: NodeType>(
         && tt_score <= alpha - 300
         && alpha < 2048
     {
-        return tt_score;
+        return alpha - 300;
     }
 
     // Reverse Futility Pruning (RFP)
