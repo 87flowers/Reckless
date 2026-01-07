@@ -494,6 +494,18 @@ fn search<NODE: NodeType>(
         return qsearch::<NonPV>(td, alpha, beta, ply);
     }
 
+    // Small Alpha Probcut
+    if !NODE::PV
+        && is_valid(tt_score)
+        && !is_decisive(tt_score)
+        && tt_bound != Bound::Lower
+        && depth >= 7
+        && tt_depth >= depth - 3
+        && tt_score <= alpha - 300
+    {
+        return alpha - 300;
+    }
+
     // Reverse Futility Pruning (RFP)
     if !tt_pv
         && !excluded
