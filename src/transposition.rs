@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 
-use crate::types::{Move, Score, is_decisive, is_loss, is_valid, is_win};
+use crate::types::{is_decisive, is_loss, is_valid, is_win, Move, Score};
 
 pub const DEFAULT_TT_SIZE: usize = 16;
 
@@ -20,6 +20,7 @@ pub struct Entry {
     pub mv: Move,
     pub score: i32,
     pub raw_eval: i32,
+    pub singular: i32,
     pub depth: i32,
     pub bound: Bound,
     pub tt_pv: bool,
@@ -43,11 +44,12 @@ pub struct InternalEntry {
     mv: Move,      // 2 bytes
     score: i16,    // 2 bytes
     raw_eval: i16, // 2 bytes
+    singular: i16, // 2 bytes
     bound: Bound,  // 1 byte
     depth: i8,     // 1 byte
     tt_pv: bool,   // 1 byte
     age: u8,       // 1 byte
-                   // 4 bytes padding
+                   // 2 bytes padding
 }
 
 pub enum TtDepth {}
@@ -129,6 +131,7 @@ impl TranspositionTable {
                     depth: entry.depth as i32,
                     score: score_from_tt(entry.score as i32, ply, halfmove_clock),
                     raw_eval: entry.raw_eval as i32,
+                    singular: entry.singular as i32,
                     bound: entry.bound,
                     tt_pv: entry.tt_pv,
                     mv: entry.mv,
@@ -143,8 +146,8 @@ impl TranspositionTable {
 
     #[allow(clippy::too_many_arguments)]
     pub fn write(
-        &self, hash: u64, depth: i32, raw_eval: i32, mut score: i32, bound: Bound, mv: Move, ply: isize, tt_pv: bool,
-        force: bool,
+        &self, hash: u64, depth: i32, raw_eval: i32, mut score: i32, singular: i32, bound: Bound, mv: Move, ply: isize,
+        tt_pv: bool, force: bool,
     ) {
         // Used for checking if an entry exists
         debug_assert!(depth != TtDepth::NONE);
@@ -193,6 +196,7 @@ impl TranspositionTable {
             mv: entry.mv,
             score: score as i16,
             raw_eval: raw_eval as i16,
+            singular: singular as i16,
             bound,
             depth: depth as i8,
             tt_pv,
@@ -203,7 +207,7 @@ impl TranspositionTable {
     pub fn prefetch(&self, hash: u64) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            use std::arch::x86_64::{_MM_HINT_T1, _mm_prefetch};
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T1};
 
             let index = index(hash, self.len());
             let ptr = self.ptr().add(index).cast();
@@ -297,7 +301,7 @@ impl Drop for TranspositionTable {
 
 unsafe fn allocate(threads: usize, size_mb: usize) -> (*mut Cluster, usize) {
     #[cfg(target_os = "linux")]
-    use libc::{MADV_HUGEPAGE, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE, madvise, mmap};
+    use libc::{madvise, mmap, MADV_HUGEPAGE, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 
     let size = size_mb * MEGABYTE;
     let len = size / CLUSTER_SIZE;
