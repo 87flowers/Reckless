@@ -653,7 +653,13 @@ fn search<NODE: NodeType>(
         let singular_beta = tt_score - depth - depth * (tt_pv && !NODE::PV) as i32;
         let singular_depth = (depth - 1) / 2;
 
-        if tt_depth >= depth && is_valid(tt_singular) && tt_move.is_some() && td.board.is_legal(tt_move) {
+        if tt_depth >= depth
+            && is_valid(tt_singular)
+            && !is_decisive(tt_singular)
+            && (tt_singular < singular_beta || tt_singular >= beta)
+            && tt_move.is_some()
+            && td.board.is_legal(tt_move)
+        {
             singular_score = tt_singular;
         } else {
             td.stack[ply].excluded = tt_move;
