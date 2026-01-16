@@ -23,6 +23,7 @@ pub struct Entry {
     pub singular: i32,
     pub depth: i32,
     pub bound: Bound,
+    pub singular_bound: Bound,
     pub tt_pv: bool,
 }
 
@@ -40,16 +41,17 @@ pub enum Bound {
 #[derive(Clone)]
 #[repr(align(16))]
 pub struct InternalEntry {
-    key: u16,      // 2 bytes
-    mv: Move,      // 2 bytes
-    score: i16,    // 2 bytes
-    raw_eval: i16, // 2 bytes
-    singular: i16, // 2 bytes
-    bound: Bound,  // 1 byte
-    depth: i8,     // 1 byte
-    tt_pv: bool,   // 1 byte
-    age: u8,       // 1 byte
-                   // 2 bytes padding
+    key: u16,              // 2 bytes
+    mv: Move,              // 2 bytes
+    score: i16,            // 2 bytes
+    raw_eval: i16,         // 2 bytes
+    singular: i16,         // 2 bytes
+    bound: Bound,          // 1 byte
+    singular_bound: Bound, // 1 byte
+    depth: i8,             // 1 byte
+    tt_pv: bool,           // 1 byte
+    age: u8,               // 1 byte
+                           // 1 byte padding
 }
 
 pub enum TtDepth {}
@@ -133,6 +135,7 @@ impl TranspositionTable {
                     raw_eval: entry.raw_eval as i32,
                     singular: entry.singular as i32,
                     bound: entry.bound,
+                    singular_bound: entry.singular_bound,
                     tt_pv: entry.tt_pv,
                     mv: entry.mv,
                 };
@@ -146,8 +149,8 @@ impl TranspositionTable {
 
     #[allow(clippy::too_many_arguments)]
     pub fn write(
-        &self, hash: u64, depth: i32, raw_eval: i32, mut score: i32, singular: i32, bound: Bound, mv: Move, ply: isize,
-        tt_pv: bool, force: bool,
+        &self, hash: u64, depth: i32, raw_eval: i32, mut score: i32, bound: Bound, singular: i32,
+        singular_bound: Bound, mv: Move, ply: isize, tt_pv: bool, force: bool,
     ) {
         // Used for checking if an entry exists
         debug_assert!(depth != TtDepth::NONE);
@@ -198,6 +201,7 @@ impl TranspositionTable {
             raw_eval: raw_eval as i16,
             singular: singular as i16,
             bound,
+            singular_bound,
             depth: depth as i8,
             tt_pv,
             age: tt_age,

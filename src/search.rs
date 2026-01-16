@@ -305,6 +305,7 @@ fn search<NODE: NodeType>(
     let mut tt_move = Move::NULL;
     let mut tt_score = Score::NONE;
     let mut tt_singular = Score::NONE;
+    let mut tt_singular_bound = Bound::None;
     let mut tt_bound = Bound::None;
     let mut tt_pv = NODE::PV;
 
@@ -314,6 +315,7 @@ fn search<NODE: NodeType>(
         tt_move = entry.mv;
         tt_score = entry.score;
         tt_singular = entry.singular;
+        tt_singular_bound = entry.singular_bound;
         tt_bound = entry.bound;
         tt_pv |= entry.tt_pv;
 
@@ -385,7 +387,19 @@ fn search<NODE: NodeType>(
             || (bound == Bound::Upper && score <= alpha)
         {
             let depth = (depth + 6).min(MAX_PLY as i32 - 1);
-            td.shared.tt.write(hash, depth, Score::NONE, score, Score::NONE, bound, Move::NULL, ply, tt_pv, false);
+            td.shared.tt.write(
+                hash,
+                depth,
+                Score::NONE,
+                score,
+                bound,
+                Score::NONE,
+                Bound::None,
+                Move::NULL,
+                ply,
+                tt_pv,
+                false,
+            );
             return score;
         }
 
@@ -423,6 +437,7 @@ fn search<NODE: NodeType>(
             TtDepth::SOME,
             raw_eval,
             Score::NONE,
+            Bound::None,
             Score::NONE,
             Bound::None,
             Move::NULL,
@@ -637,8 +652,9 @@ fn search<NODE: NodeType>(
                     probcut_depth + 1,
                     raw_eval,
                     score,
-                    Score::NONE,
                     Bound::Lower,
+                    Score::NONE,
+                    Bound::None,
                     mv,
                     ply,
                     tt_pv,
@@ -655,6 +671,7 @@ fn search<NODE: NodeType>(
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
+    let mut singular_bound = Bound::None;
 
     if !NODE::ROOT && !excluded && potential_singularity && ply < 2 * td.root_depth as isize {
         debug_assert!(is_valid(tt_score));
@@ -664,8 +681,11 @@ fn search<NODE: NodeType>(
 
         if tt_depth >= depth
             && is_valid(tt_singular)
-            && !is_decisive(tt_singular)
-            && (tt_singular < singular_beta || tt_singular >= beta)
+            && match tt_singular_bound {
+                Bound::Upper => tt_singular < singular_beta,
+                Bound::Lower => tt_singular >= beta && !is_decisive(tt_singular),
+                _ => false,
+            }
             && tt_move.is_some()
             && td.board.is_legal(tt_move)
         {
@@ -681,6 +701,8 @@ fn search<NODE: NodeType>(
         }
 
         if singular_score < singular_beta {
+            singular_bound = Bound::Upper;
+
             let double_margin =
                 -4 + 256 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128;
             let triple_margin =
@@ -696,6 +718,22 @@ fn search<NODE: NodeType>(
         }
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
+            singular_bound = Bound::Lower;
+
+            td.shared.tt.write(
+                hash,
+                TtDepth::SOME,
+                raw_eval,
+                tt_score,
+                tt_bound,
+                singular_score,
+                singular_bound,
+                tt_move,
+                ply,
+                tt_pv,
+                false,
+            );
+
             return (singular_score * singular_depth + beta) / (singular_depth + 1);
         }
         // Negative Extensions
@@ -1119,7 +1157,19 @@ fn search<NODE: NodeType>(
     }
 
     if !(excluded || NODE::ROOT && td.pv_index > 0) {
-        td.shared.tt.write(hash, depth, raw_eval, best_score, singular_score, bound, best_move, ply, tt_pv, NODE::PV);
+        td.shared.tt.write(
+            hash,
+            depth,
+            raw_eval,
+            best_score,
+            bound,
+            singular_score,
+            singular_bound,
+            best_move,
+            ply,
+            tt_pv,
+            NODE::PV,
+        );
     }
 
     if !(in_check
@@ -1226,8 +1276,9 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
                     TtDepth::SOME,
                     raw_eval,
                     best_score,
-                    Score::NONE,
                     Bound::Lower,
+                    Score::NONE,
+                    Bound::None,
                     Move::NULL,
                     ply,
                     tt_pv,
@@ -1314,7 +1365,19 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     let bound = if best_score >= beta { Bound::Lower } else { Bound::Upper };
 
-    td.shared.tt.write(hash, TtDepth::SOME, raw_eval, best_score, Score::NONE, bound, best_move, ply, tt_pv, false);
+    td.shared.tt.write(
+        hash,
+        TtDepth::SOME,
+        raw_eval,
+        best_score,
+        bound,
+        Score::NONE,
+        Bound::None,
+        best_move,
+        ply,
+        tt_pv,
+        false,
+    );
 
     debug_assert!(alpha < beta);
     debug_assert!(-Score::INFINITE < best_score && best_score < Score::INFINITE);
