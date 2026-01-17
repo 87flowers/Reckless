@@ -45,26 +45,35 @@ impl QuietHistoryEntry {
 }
 
 pub struct QuietHistory {
-    entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
+    from_to_entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
 }
 
 impl QuietHistory {
-    pub fn get(&self, threats: Bitboard, stm: Color, mv: Move) -> i32 {
-        let entry = &self.entries[stm][mv.from()][mv.to()];
-        (entry.factorizer + entry.bucket(threats, mv)) as i32
+    pub fn get(&self, threats: Bitboard, stm: Color, piece: Piece, mv: Move) -> i32 {
+        let ft_entry = &self.from_to_entries[stm][mv.from()][mv.to()];
+        let pt_entry = &self.piece_to_entries[stm][piece][mv.to()];
+        (ft_entry.factorizer + ft_entry.bucket(threats, mv) + pt_entry.factorizer + pt_entry.bucket(threats, mv)) as i32
+            / 2
     }
 
-    pub fn update(&mut self, threats: Bitboard, stm: Color, mv: Move, bonus: i32) {
-        let entry = &mut self.entries[stm][mv.from()][mv.to()];
+    pub fn update(&mut self, threats: Bitboard, stm: Color, piece: Piece, mv: Move, bonus: i32) {
+        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        let pt_entry = &mut self.piece_to_entries[stm][piece][mv.to()];
 
-        entry.update_factorizer(bonus);
-        entry.update_bucket(threats, mv, bonus);
+        ft_entry.update_factorizer(bonus);
+        ft_entry.update_bucket(threats, mv, bonus);
+        pt_entry.update_factorizer(bonus);
+        pt_entry.update_bucket(threats, mv, bonus);
     }
 }
 
 impl Default for QuietHistory {
     fn default() -> Self {
-        Self { entries: zeroed_box() }
+        Self {
+            from_to_entries: zeroed_box(),
+            piece_to_entries: zeroed_box(),
+        }
     }
 }
 
