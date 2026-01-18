@@ -22,7 +22,7 @@ struct QuietHistoryEntry {
 
 impl Default for QuietHistoryEntry {
     fn default() -> Self {
-        Self { factorizer: -310, buckets: [[-505, -609], [163, -174]] }
+        Self { factorizer: -150, buckets: [[-250, -300], [80, -85]] }
     }
 }
 
