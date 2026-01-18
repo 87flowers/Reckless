@@ -14,9 +14,16 @@ fn apply_bonus<const MAX: i32>(entry: &mut i16, bonus: i32) {
     *entry += (bonus - bonus.abs() * (*entry) as i32 / MAX) as i16;
 }
 
+#[derive(Copy, Clone)]
 struct QuietHistoryEntry {
     factorizer: i16,
     buckets: [[i16; 2]; 2],
+}
+
+impl Default for QuietHistoryEntry {
+    fn default() -> Self {
+        Self { factorizer: -310, buckets: [[-505, -609], [163, -174]] }
+    }
 }
 
 impl QuietHistoryEntry {
@@ -64,7 +71,9 @@ impl QuietHistory {
 
 impl Default for QuietHistory {
     fn default() -> Self {
-        Self { entries: zeroed_box() }
+        Self {
+            entries: Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]),
+        }
     }
 }
 
