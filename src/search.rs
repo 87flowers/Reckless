@@ -501,6 +501,17 @@ fn search<NODE: NodeType>(
         return qsearch::<NonPV>(td, alpha, beta, ply);
     }
 
+    // Alpha Probcut
+    let apc_margin = (150 * depth).max(700);
+    if !NODE::PV && !in_check && !excluded && estimated_score < alpha - apc_margin && depth >= 4 {
+        let pc_depth = (depth - 6) / 2;
+        let pc_alpha = alpha - apc_margin;
+        let pc_score = search::<NonPV>(td, pc_alpha, pc_alpha + 1, pc_depth, false, ply);
+        if pc_score <= pc_alpha {
+            return pc_score;
+        }
+    }
+
     // Reverse Futility Pruning (RFP)
     if !tt_pv
         && !excluded
