@@ -198,8 +198,10 @@ pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboa
             (!Bitboard::rank(Rank::R8) & !Bitboard::file(File::H)).0 as i64,
         );
 
-        for _ in 0..7 {
+        let mut mask = 0xFFu8;
+        while mask != 0 {
             attackers = _mm512_and_si512(attackers, masks);
+            mask = _mm512_test_epi64_mask(attackers, masks);
             attackers = _mm512_rolv_epi64(attackers, rotates);
             attacks = _mm512_or_si512(attacks, attackers);
             attackers = _mm512_and_si512(attackers, not_occupancies);
