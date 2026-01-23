@@ -749,6 +749,7 @@ fn search<NODE: NodeType>(
             } else {
                 (-8 * depth * depth - 36 * depth - 32 * history / 1024 + 11).min(0)
             };
+            let threshold = threshold - 50 * tt_pv as i32 * depth * depth;
 
             if !td.board.see(mv, threshold) {
                 continue;
