@@ -778,7 +778,7 @@ fn search<NODE: NodeType>(
             reduction -= 3183 * correction_value.abs() / 1024;
 
             if is_quiet {
-                reduction += 1922;
+                reduction += 1805;
                 reduction -= 154 * history / 1024;
             } else {
                 reduction += 1402;
@@ -797,6 +797,10 @@ fn search<NODE: NodeType>(
 
             if mv.is_noisy() && mv.to() == td.board.recapture_square() {
                 reduction -= 910;
+            }
+
+            if !mv.is_noisy() && tt_move.is_noisy() {
+                reduction += 800;
             }
 
             if !tt_pv && cut_node {
