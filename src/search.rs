@@ -824,6 +824,12 @@ fn search<NODE: NodeType>(
                 reduction -= 1195;
             }
 
+            if !NODE::PV && !cut_node {
+                let factor = i32::min(depth, ply as i32);
+                reduction *= 1 + factor;
+                reduction /= factor;
+            }
+
             let reduced_depth = (new_depth - reduction / 1024).clamp(1, new_depth + 1) + 2 * NODE::PV as i32;
 
             td.stack[ply].reduction = reduction;
