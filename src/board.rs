@@ -466,23 +466,28 @@ impl Board {
 
         threats |= pawn_attacks_setwise(self.their(PieceType::Pawn), !self.side_to_move);
 
-        for square in self.their(PieceType::Knight) {
-            threats |= knight_attacks(square);
-        }
-
         #[cfg(target_feature = "avx512f")]
-        {
-            use crate::lookup::slider_attacks_setwise;
-            threats |= slider_attacks_setwise(
-                self.their(PieceType::Bishop),
-                self.their(PieceType::Rook),
-                self.their(PieceType::Queen),
-                occupancies,
-            );
+        unsafe {
+            use crate::lookup::{knight_attacks_setwise, setwise_fold, slider_attacks_setwise};
+            use std::arch::x86_64::_mm512_or_epi64;
+
+            threats |= setwise_fold(_mm512_or_epi64(
+                knight_attacks_setwise(self.their(PieceType::Knight)),
+                slider_attacks_setwise(
+                    self.their(PieceType::Bishop),
+                    self.their(PieceType::Rook),
+                    self.their(PieceType::Queen),
+                    occupancies,
+                ),
+            ));
         }
 
         #[cfg(not(target_feature = "avx512f"))]
         {
+            for square in self.their(PieceType::Knight) {
+                threats |= knight_attacks(square);
+            }
+
             for square in self.their(PieceType::Bishop) | self.their(PieceType::Queen) {
                 threats |= bishop_attacks(square, occupancies);
             }

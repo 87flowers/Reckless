@@ -1,3 +1,6 @@
+#[cfg(target_feature = "avx512f")]
+use std::arch::x86_64::__m512i;
+
 use crate::types::{Bitboard, Color, File, Piece, PieceType, Square, ZOBRIST};
 
 include!(concat!(env!("OUT_DIR"), "/lookup.rs"));
@@ -150,6 +153,27 @@ pub fn knight_attacks(square: Square) -> Bitboard {
     unsafe { Bitboard(*KNIGHT_MAP.get_unchecked(square as usize)) }
 }
 
+#[cfg(target_feature = "avx512f")]
+pub fn knight_attacks_setwise(knights: Bitboard) -> __m512i {
+    use crate::types::{File, Rank};
+    use std::arch::x86_64::*;
+    unsafe {
+        _mm512_and_epi64(
+            _mm512_rolv_epi64(_mm512_set1_epi64(knights.0 as i64), _mm512_set_epi64(-17, -15, -10, -6, 6, 10, 15, 17)),
+            _mm512_set_epi64(
+                (!Bitboard::file(File::H) & !Bitboard::rank(Rank::R7) & !Bitboard::rank(Rank::R8)).0 as i64,
+                (!Bitboard::file(File::A) & !Bitboard::rank(Rank::R7) & !Bitboard::rank(Rank::R8)).0 as i64,
+                (!Bitboard::file(File::G) & !Bitboard::file(File::H) & !Bitboard::rank(Rank::R8)).0 as i64,
+                (!Bitboard::file(File::A) & !Bitboard::file(File::B) & !Bitboard::rank(Rank::R8)).0 as i64,
+                (!Bitboard::file(File::G) & !Bitboard::file(File::H) & !Bitboard::rank(Rank::R1)).0 as i64,
+                (!Bitboard::file(File::A) & !Bitboard::file(File::B) & !Bitboard::rank(Rank::R1)).0 as i64,
+                (!Bitboard::file(File::H) & !Bitboard::rank(Rank::R1) & !Bitboard::rank(Rank::R2)).0 as i64,
+                (!Bitboard::file(File::A) & !Bitboard::rank(Rank::R1) & !Bitboard::rank(Rank::R2)).0 as i64,
+            ),
+        )
+    }
+}
+
 pub fn rook_attacks(square: Square, occupancies: Bitboard) -> Bitboard {
     unsafe {
         let entry = ROOK_MAGICS.get_unchecked(square as usize);
@@ -173,7 +197,7 @@ pub fn queen_attacks(square: Square, occupancies: Bitboard) -> Bitboard {
 }
 
 #[cfg(target_feature = "avx512f")]
-pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboard, occupancies: Bitboard) -> Bitboard {
+pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboard, occupancies: Bitboard) -> __m512i {
     use crate::types::{File, Rank};
     use std::arch::x86_64::*;
     unsafe {
@@ -206,9 +230,14 @@ pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboa
         let generate = _mm512_or_si512(generate, _mm512_and_si512(propagate, _mm512_rolv_epi64(generate, rotates2)));
         let propagate = _mm512_and_si512(propagate, _mm512_rolv_epi64(propagate, rotates2));
         let generate = _mm512_or_si512(generate, _mm512_and_si512(propagate, _mm512_rolv_epi64(generate, rotates4)));
-        let attacks = _mm512_and_si512(_mm512_rolv_epi64(generate, rotates1), masks);
+        _mm512_and_si512(_mm512_rolv_epi64(generate, rotates1), masks)
+    }
+}
 
-        // Fold attacks
+#[cfg(target_feature = "avx512f")]
+pub fn setwise_fold(attacks: __m512i) -> Bitboard {
+    use std::arch::x86_64::*;
+    unsafe {
         match () {
             #[cfg(all(target_feature = "avx512bw", target_feature = "avx512vbmi", target_feature = "gfni"))]
             _ => {
