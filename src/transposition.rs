@@ -227,18 +227,18 @@ impl TranspositionTable {
     }
 
     pub fn prefetch(&self, hash: u64) {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            use std::arch::x86_64::{_MM_HINT_T1, _mm_prefetch};
+        cfg_select! {
+            target_arch = "x86_64" => unsafe {
+                use std::arch::x86_64::{_MM_HINT_T1, _mm_prefetch};
 
-            let index = index(hash, self.len());
-            let ptr = self.ptr().add(index).cast();
-            _mm_prefetch::<_MM_HINT_T1>(ptr);
+                let index = index(hash, self.len());
+                let ptr = self.ptr().add(index).cast();
+                _mm_prefetch::<_MM_HINT_T1>(ptr);
+            },
+
+            // No prefetching for non-x86_64 architectures
+            _ => hash,
         }
-
-        // No prefetching for non-x86_64 architectures
-        #[cfg(not(target_arch = "x86_64"))]
-        let _ = hash;
     }
 
     fn age(&self) -> u8 {
@@ -322,23 +322,21 @@ impl Drop for TranspositionTable {
 }
 
 unsafe fn allocate(threads: usize, size_mb: usize) -> (*mut Cluster, usize) {
-    #[cfg(target_os = "linux")]
-    use libc::{MADV_HUGEPAGE, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE, madvise, mmap};
-
     let size = size_mb * MEGABYTE;
     let len = size / CLUSTER_SIZE;
 
-    #[cfg(target_os = "linux")]
-    let ptr = {
-        let ptr = mmap(std::ptr::null_mut(), size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        madvise(ptr, size, MADV_HUGEPAGE);
-        ptr.cast()
-    };
+    let ptr = cfg_select! {
+        target_os = "linux" => {{
+            use libc::{MADV_HUGEPAGE, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE, madvise, mmap};
 
-    #[cfg(not(target_os = "linux"))]
-    let ptr = {
-        let layout = std::alloc::Layout::from_size_align(size, std::mem::align_of::<Cluster>()).unwrap();
-        std::alloc::alloc_zeroed(layout).cast()
+            let ptr = mmap(std::ptr::null_mut(), size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            madvise(ptr, size, MADV_HUGEPAGE);
+            ptr.cast()
+        }}
+        _ => {
+            let layout = std::alloc::Layout::from_size_align(size, std::mem::align_of::<Cluster>()).unwrap();
+            std::alloc::alloc_zeroed(layout).cast()
+        }
     };
 
     unsafe { parallel_clear(threads, ptr, len) };
@@ -348,13 +346,14 @@ unsafe fn allocate(threads: usize, size_mb: usize) -> (*mut Cluster, usize) {
 unsafe fn deallocate(ptr: *mut Cluster, len: usize) {
     let size = len * CLUSTER_SIZE;
 
-    #[cfg(target_os = "linux")]
-    let _ = libc::munmap(ptr.cast(), size);
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        let layout = std::alloc::Layout::from_size_align(size, std::mem::align_of::<Cluster>()).unwrap();
-        std::alloc::dealloc(ptr.cast(), layout);
+    cfg_select! {
+        target_os = "linux" => {
+            let _ = libc::munmap(ptr.cast(), size);
+        }
+        _ => {
+            let layout = std::alloc::Layout::from_size_align(size, std::mem::align_of::<Cluster>()).unwrap();
+            std::alloc::dealloc(ptr.cast(), layout);
+        }
     }
 }
 

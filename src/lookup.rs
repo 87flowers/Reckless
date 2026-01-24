@@ -209,9 +209,8 @@ pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboa
         let attacks = _mm512_and_si512(_mm512_rolv_epi64(generate, rotates1), masks);
 
         // Fold attacks
-        match () {
-            #[cfg(all(target_feature = "avx512bw", target_feature = "avx512vbmi", target_feature = "gfni"))]
-            _ => {
+        cfg_select! {
+            all(target_feature = "avx512bw", target_feature = "avx512vbmi", target_feature = "gfni") => {
                 let attacks = _mm512_gf2p8affine_epi64_epi8(
                     _mm512_set1_epi64(0x8040201008040201u64 as i64),
                     _mm512_permutexvar_epi8(
@@ -226,7 +225,6 @@ pub fn slider_attacks_setwise(bishops: Bitboard, rooks: Bitboard, queens: Bitboa
                 );
                 Bitboard(_mm512_test_epi8_mask(attacks, attacks))
             }
-            #[allow(unreachable_patterns)]
             _ => {
                 let attacks = _mm256_or_si256(_mm512_castsi512_si256(attacks), _mm512_extracti64x4_epi64::<1>(attacks));
                 let attacks = _mm_or_si128(_mm256_castsi256_si128(attacks), _mm256_extracti128_si256::<1>(attacks));

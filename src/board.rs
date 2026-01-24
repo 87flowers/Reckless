@@ -470,25 +470,24 @@ impl Board {
             threats |= knight_attacks(square);
         }
 
-        #[cfg(target_feature = "avx512f")]
-        {
-            use crate::lookup::slider_attacks_setwise;
-            threats |= slider_attacks_setwise(
-                self.their(PieceType::Bishop),
-                self.their(PieceType::Rook),
-                self.their(PieceType::Queen),
-                occupancies,
-            );
-        }
-
-        #[cfg(not(target_feature = "avx512f"))]
-        {
-            for square in self.their(PieceType::Bishop) | self.their(PieceType::Queen) {
-                threats |= bishop_attacks(square, occupancies);
+        cfg_select! {
+            target_feature = "avx512f" => {
+                use crate::lookup::slider_attacks_setwise;
+                threats |= slider_attacks_setwise(
+                    self.their(PieceType::Bishop),
+                    self.their(PieceType::Rook),
+                    self.their(PieceType::Queen),
+                    occupancies,
+                );
             }
+            _ => {
+                for square in self.their(PieceType::Bishop) | self.their(PieceType::Queen) {
+                    threats |= bishop_attacks(square, occupancies);
+                }
 
-            for square in self.their(PieceType::Rook) | self.their(PieceType::Queen) {
-                threats |= rook_attacks(square, occupancies);
+                for square in self.their(PieceType::Rook) | self.their(PieceType::Queen) {
+                    threats |= rook_attacks(square, occupancies);
+                }
             }
         }
 

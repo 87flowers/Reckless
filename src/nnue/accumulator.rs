@@ -324,10 +324,10 @@ impl ThreatAccumulator {
             }
         }
 
-        #[cfg(target_feature = "avx512f")]
-        const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
-        #[cfg(not(target_feature = "avx512f"))]
-        const REGISTERS: usize = 8;
+        const REGISTERS: usize = cfg_select! {
+            target_feature = "avx512f" => L1_SIZE / simd::I16_LANES,
+            _ => 8,
+        };
 
         let mut registers: [_; REGISTERS] = std::mem::zeroed();
 
