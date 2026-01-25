@@ -165,24 +165,32 @@ impl MovePicker {
         use std::arch::x86_64::*;
         unsafe {
             let invalid = _mm256_set1_epi64x(i64::MIN);
-            let step = _mm256_set1_epi64x(4);
+            let step = _mm256_set1_epi64x(8);
             let last_index = _mm256_set1_epi64x(self.list.len() as i64 - 1);
+            let mask = _mm256_set1_epi64x(0xFFFFFFFF00000000u64 as i64);
 
-            let mut index = _mm256_set_epi64x(3, 2, 1, 0);
-            let mut best = invalid;
+            let mut index0 = _mm256_set_epi64x(3, 2, 1, 0);
+            let mut index1 = _mm256_set_epi64x(7, 6, 5, 4);
+            let mut best0 = invalid;
+            let mut best1 = invalid;
 
-            for i in (0..self.list.len()).step_by(4) {
-                // SAFETY: This will never read beyond the end of the list, because MAX_MOVES is a multiple of 4.
-                let curr = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
-                let curr = _mm256_and_si256(curr, _mm256_set1_epi64x(0xFFFFFFFF00000000u64 as i64));
-                let curr = _mm256_add_epi64(curr, index);
-                let curr = _mm256_blendv_epi8(curr, invalid, _mm256_cmpgt_epi64(index, last_index));
+            for i in (0..self.list.len()).step_by(8) {
+                // SAFETY: This will never read beyond the end of the list, because MAX_MOVES is a multiple of 8.
+                let curr0 = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
+                let curr1 = _mm256_loadu_si256(self.list.as_ptr().add(i + 4).cast());
+                let curr0 = _mm256_or_si256(_mm256_and_si256(curr0, mask), index0);
+                let curr1 = _mm256_or_si256(_mm256_and_si256(curr1, mask), index1);
+                let curr0 = _mm256_blendv_epi8(curr0, invalid, _mm256_cmpgt_epi64(index0, last_index));
+                let curr1 = _mm256_blendv_epi8(curr1, invalid, _mm256_cmpgt_epi64(index1, last_index));
 
-                best = _mm256_blendv_epi8(best, curr, _mm256_cmpgt_epi64(curr, best));
+                best0 = _mm256_blendv_epi8(best0, curr0, _mm256_cmpgt_epi64(curr0, best0));
+                best1 = _mm256_blendv_epi8(best1, curr1, _mm256_cmpgt_epi64(curr1, best1));
 
-                index = _mm256_add_epi64(index, step);
+                index0 = _mm256_add_epi64(index0, step);
+                index1 = _mm256_add_epi64(index1, step);
             }
 
+            let best = _mm256_blendv_epi8(best0, best1, _mm256_cmpgt_epi64(best1, best0));
             let best = std::mem::transmute::<__m256i, [i64; 4]>(best);
             let best = best.iter().max().unwrap();
             (best & 0xFF) as usize
