@@ -145,6 +145,7 @@ impl MovePicker {
         None
     }
 
+    #[cfg(not(target_feature = "avx2"))]
     fn find_best_score_index(&self) -> usize {
         let mut best_index = 0;
         let mut best_score = i32::MIN;
@@ -157,6 +158,35 @@ impl MovePicker {
         }
 
         best_index
+    }
+
+    #[cfg(target_feature = "avx2")]
+    fn find_best_score_index(&self) -> usize {
+        use std::arch::x86_64::*;
+        unsafe {
+            let invalid = _mm256_set1_epi64x(i64::MIN);
+            let step = _mm256_set1_epi64x(4);
+            let last_index = _mm256_set1_epi64x(self.list.len() as i64 - 1);
+
+            let mut index = _mm256_set_epi64x(3, 2, 1, 0);
+            let mut best = invalid;
+
+            for i in (0..self.list.len()).step_by(4) {
+                // SAFETY: This will never read beyond the end of the list, because MAX_MOVES is a multiple of 4.
+                let curr = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
+                let curr = _mm256_and_si256(curr, _mm256_set1_epi64x(0xFFFFFFFF00000000u64 as i64));
+                let curr = _mm256_add_epi64(curr, index);
+                let curr = _mm256_blendv_epi8(curr, invalid, _mm256_cmpgt_epi64(index, last_index));
+
+                best = _mm256_blendv_epi8(best, curr, _mm256_cmpgt_epi64(curr, best));
+
+                index = _mm256_add_epi64(index, step);
+            }
+
+            let best = std::mem::transmute::<__m256i, [i64; 4]>(best);
+            let best = best.iter().max().unwrap();
+            (best & 0xFF) as usize
+        }
     }
 
     fn score_noisy(&mut self, td: &ThreadData) {
