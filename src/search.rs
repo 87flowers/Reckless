@@ -676,6 +676,8 @@ fn search<NODE: NodeType>(
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
+    let mut alpha_raise_quiet_moves = ArrayVec::<Move, 32>::new();
+    let mut alpha_raise_noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
     let mut move_picker = MovePicker::new(tt_move);
@@ -971,11 +973,19 @@ fn search<NODE: NodeType>(
             }
         }
 
-        if mv != best_move && move_count < 32 {
-            if is_quiet {
-                quiet_moves.push(mv);
+        if move_count < 32 {
+            if mv != best_move {
+                if is_quiet {
+                    quiet_moves.push(mv);
+                } else {
+                    noisy_moves.push(mv);
+                }
             } else {
-                noisy_moves.push(mv);
+                if is_quiet {
+                    alpha_raise_quiet_moves.push(mv);
+                } else {
+                    alpha_raise_noisy_moves.push(mv);
+                }
             }
         }
     }
@@ -1014,11 +1024,31 @@ fn search<NODE: NodeType>(
                 td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
             }
+
+            for &mv in quiet_moves.iter() {
+                if mv != best_move {
+                    td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, quiet_bonus / 8);
+                    update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), cont_bonus / 8);
+                }
+            }
         }
 
         for &mv in noisy_moves.iter() {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.update(td.board.threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
+        }
+
+        for &mv in alpha_raise_noisy_moves.iter() {
+            if mv != best_move {
+                let captured = td.board.piece_on(mv.to()).piece_type();
+                td.noisy_history.update(
+                    td.board.threats(),
+                    td.board.moved_piece(mv),
+                    mv.to(),
+                    captured,
+                    noisy_bonus / 8,
+                );
+            }
         }
 
         if !NODE::ROOT && td.stack[ply - 1].mv.is_quiet() && td.stack[ply - 1].move_count < 2 {
