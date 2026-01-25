@@ -1027,8 +1027,8 @@ fn search<NODE: NodeType>(
 
             for &mv in quiet_moves.iter() {
                 if mv != best_move {
-                    td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, quiet_bonus / 8);
-                    update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), cont_bonus / 8);
+                    td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus / 8);
+                    update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus / 8);
                 }
             }
         }
@@ -1046,7 +1046,7 @@ fn search<NODE: NodeType>(
                     td.board.moved_piece(mv),
                     mv.to(),
                     captured,
-                    noisy_bonus / 8,
+                    -noisy_malus / 8,
                 );
             }
         }
