@@ -971,7 +971,7 @@ fn search<NODE: NodeType>(
             }
         }
 
-        if mv != best_move && move_count < 32 {
+        if move_count < 32 {
             if is_quiet {
                 quiet_moves.push(mv);
             } else {
@@ -1011,14 +1011,18 @@ fn search<NODE: NodeType>(
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
 
             for &mv in quiet_moves.iter() {
-                td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus);
-                update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
+                if mv != best_move {
+                    td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus);
+                    update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
+                }
             }
         }
 
         for &mv in noisy_moves.iter() {
-            let captured = td.board.piece_on(mv.to()).piece_type();
-            td.noisy_history.update(td.board.threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
+            if mv != best_move {
+                let captured = td.board.piece_on(mv.to()).piece_type();
+                td.noisy_history.update(td.board.threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
+            }
         }
 
         if !NODE::ROOT && td.stack[ply - 1].mv.is_quiet() && td.stack[ply - 1].move_count < 2 {
