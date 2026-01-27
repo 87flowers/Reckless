@@ -172,9 +172,22 @@ impl MovePicker {
 
             let mut best = invalid;
             let mut curr_index = _mm256_set_epi64x(3 << 16, 2 << 16, 1 << 16, 0 << 16);
+            let mut i: usize = 0;
 
-            for i in (0..self.list.len()).step_by(4) {
+            while i + 4 < self.list.len() {
                 // SAFETY: This will never read beyond the end of the list, because MAX_MOVES is a multiple of 4.
+                let curr = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
+                let curr = _mm256_or_si256(curr, curr_index);
+
+                let mask = _mm256_cmpgt_epi64(curr, best);
+
+                best = _mm256_blendv_epi8(best, curr, mask);
+
+                curr_index = _mm256_add_epi64(curr_index, step);
+                i += 4;
+            }
+
+            if i < self.list.len() {
                 let curr = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
                 let curr = _mm256_or_si256(curr, curr_index);
                 let curr = _mm256_blendv_epi8(curr, invalid, _mm256_cmpgt_epi64(curr_index, max_index));
@@ -182,8 +195,6 @@ impl MovePicker {
                 let mask = _mm256_cmpgt_epi64(curr, best);
 
                 best = _mm256_blendv_epi8(best, curr, mask);
-
-                curr_index = _mm256_add_epi64(curr_index, step);
             }
 
             let best = std::mem::transmute::<__m256i, [i64; 4]>(best);
