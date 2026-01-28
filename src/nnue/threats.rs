@@ -33,10 +33,15 @@ static mut ATTACK_INDEX_LOOKUP: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
 pub fn initialize() {
     #[cfg(target_arch = "x86_64")]
     unsafe {
-        use std::arch::x86_64::*;
-
+        use std::arch::asm;
         // Enables Flush To Zero, Denormals Are Zero, and sets all floating point exception masks
-        _mm_setcsr(_mm_getcsr() | 0x9FC0);
+        asm! {
+            "add rsp, 8",
+            "stmxcsr [rsp]",
+            "or dword ptr [rsp], 0x9FC0",
+            "ldmxcsr [rsp]",
+            "sub rsp, 8",
+        };
     }
 
     #[rustfmt::skip]
