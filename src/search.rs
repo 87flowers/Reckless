@@ -407,7 +407,9 @@ fn search<NODE: NodeType>(
     } else if excluded {
         raw_eval = Score::NONE;
         eval = td.stack[ply].eval;
-    } else if let Some(entry) = &entry {
+    } else if let Some(entry) = &entry
+        && td.board.is_pseudo_legal(entry.mv)
+    {
         raw_eval = if is_valid(entry.raw_eval) { entry.raw_eval } else { td.nnue.evaluate(&td.board) };
         eval = correct_eval(td, raw_eval, correction_value);
     } else {
