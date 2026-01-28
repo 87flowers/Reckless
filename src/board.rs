@@ -446,9 +446,20 @@ impl Board {
     /// Roughly 90–95% accurate. Does not account for discovered checks, promotions,
     /// en passant, or checks delivered via castling.
     pub fn is_direct_check(&self, mv: Move) -> bool {
-        let occupancies = self.occupancies() ^ mv.from().to_bb() ^ mv.to().to_bb();
+        let occupancies = self.occupancies() ^ mv.from().to_bb();
+
         let direct_attacks = attacks(self.moved_piece(mv), mv.to(), occupancies);
+
+        let discovered_rooks = (self.our(PieceType::Rook) | self.our(PieceType::Queen))
+            & (rook_attacks(self.their(PieceType::King).lsb(), occupancies)
+                ^ rook_attacks(self.their(PieceType::King).lsb(), self.occupancies()));
+        let discovered_bishops = (self.our(PieceType::Bishop) | self.our(PieceType::Queen))
+            & (bishop_attacks(self.their(PieceType::King).lsb(), occupancies)
+                ^ bishop_attacks(self.their(PieceType::King).lsb(), self.occupancies()));
+
         direct_attacks.contains(self.their(PieceType::King).lsb())
+            || !discovered_rooks.is_empty()
+            || !discovered_bishops.is_empty()
     }
 
     pub fn update_threats(&mut self) {
