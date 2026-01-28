@@ -682,6 +682,8 @@ fn search<NODE: NodeType>(
     let mut skip_quiets = false;
     let mut current_search_count = 0;
 
+    let tt_move_pseudo_legal = td.board.is_pseudo_legal(tt_move);
+
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.stack[ply].excluded || !td.board.is_legal(mv) {
             continue;
@@ -763,7 +765,7 @@ fn search<NODE: NodeType>(
         let mut score = Score::ZERO;
 
         // Internal Iterative Reductions (IIR)
-        if (NODE::PV || cut_node) && new_depth >= 5 && tt_move.is_null() {
+        if (NODE::PV || cut_node) && new_depth >= 5 && !tt_move_pseudo_legal {
             new_depth -= 1;
         }
 
