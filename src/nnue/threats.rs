@@ -31,6 +31,14 @@ static mut PIECE_OFFSET_LOOKUP: [[i32; 64]; 12] = [[0; 64]; 12];
 static mut ATTACK_INDEX_LOOKUP: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
 
 pub fn initialize() {
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        use std::arch::x86_64::*;
+
+        // Enables Flush To Zero, Denormals Are Zero, and sets all floating point exception masks
+        _mm_setcsr(_mm_getcsr() | 0x9FC0);
+    }
+
     #[rustfmt::skip]
     const PIECE_INTERACTION_MAP: [[i32; 6]; 6] = [
         [0,  1, -1,  2, -1, -1],
