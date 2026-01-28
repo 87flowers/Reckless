@@ -429,6 +429,8 @@ fn search<NODE: NodeType>(
             Bound::Lower => tt_score > eval,
             _ => true,
         }
+        && td.board.us().contains(tt_move.from())
+        && !td.board.us().contains(tt_move.to())
     {
         estimated_score = tt_score;
     }
