@@ -417,6 +417,8 @@ fn search<NODE: NodeType>(
         td.shared.tt.write(hash, TtDepth::SOME, raw_eval, Score::NONE, Bound::None, Move::NULL, ply, tt_pv, false);
     }
 
+    let tt_move_pseudo_legal = td.board.is_pseudo_legal(tt_move);
+
     // Prefer the TT entry to tighten the evaluation when its bound aligns with
     // the current alpha-beta window; otherwise, retain the unbounded evaluation
     let mut estimated_score = eval;
@@ -429,6 +431,7 @@ fn search<NODE: NodeType>(
             Bound::Lower => tt_score > eval,
             _ => true,
         }
+        && tt_move_pseudo_legal
     {
         estimated_score = tt_score;
     }
@@ -442,6 +445,7 @@ fn search<NODE: NodeType>(
             Bound::Lower => tt_score >= beta,
             _ => true,
         }
+        && tt_move_pseudo_legal
     {
         estimated_score = tt_score;
         eval = tt_score;
@@ -484,7 +488,8 @@ fn search<NODE: NodeType>(
         && tt_depth >= depth - 3
         && tt_bound != Bound::Upper
         && is_valid(tt_score)
-        && !is_decisive(tt_score);
+        && !is_decisive(tt_score)
+        && tt_move_pseudo_legal;
 
     let mut improvement = 0;
 
@@ -681,8 +686,6 @@ fn search<NODE: NodeType>(
     let mut move_picker = MovePicker::new(tt_move);
     let mut skip_quiets = false;
     let mut current_search_count = 0;
-
-    let tt_move_pseudo_legal = td.board.is_pseudo_legal(tt_move);
 
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.stack[ply].excluded || !td.board.is_legal(mv) {
