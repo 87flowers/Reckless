@@ -175,13 +175,10 @@ impl MovePicker {
             let mut i: usize = 0;
 
             while i + 4 < self.list.len() {
-                // SAFETY: This will never read beyond the end of the list, because MAX_MOVES is a multiple of 4.
                 let curr = _mm256_loadu_si256(self.list.as_ptr().add(i).cast());
                 let curr = _mm256_or_si256(curr, curr_index);
 
-                let mask = _mm256_cmpgt_epi64(curr, best);
-
-                best = _mm256_blendv_epi8(best, curr, mask);
+                best = _mm256_blendv_epi8(best, curr, _mm256_cmpgt_epi64(curr, best));
 
                 curr_index = _mm256_add_epi64(curr_index, step);
                 i += 4;
@@ -192,14 +189,24 @@ impl MovePicker {
                 let curr = _mm256_or_si256(curr, curr_index);
                 let curr = _mm256_blendv_epi8(curr, invalid, _mm256_cmpgt_epi64(curr_index, max_index));
 
-                let mask = _mm256_cmpgt_epi64(curr, best);
-
-                best = _mm256_blendv_epi8(best, curr, mask);
+                best = _mm256_blendv_epi8(best, curr, _mm256_cmpgt_epi64(curr, best));
             }
 
-            let best = std::mem::transmute::<__m256i, [i64; 4]>(best);
+            let best = {
+                let best0 = _mm256_castsi256_si128(best);
+                let best1 = _mm256_extracti128_si256::<1>(best);
+                _mm_blendv_epi8(best0, best1, _mm_cmpgt_epi64(best1, best0))
+            };
 
-            ((*best.iter().max().unwrap() & 0xFFFF0000) >> 16) as usize
+            let best = {
+                let best0 = best;
+                let best1 = _mm_shuffle_epi32::<0b11101110>(best);
+                _mm_blendv_epi8(best0, best1, _mm_cmpgt_epi64(best1, best0))
+            };
+
+            let best = _mm_extract_epi64::<0>(best);
+
+            ((best & 0xFFFF0000) >> 16) as usize
         }
     }
 
