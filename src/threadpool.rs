@@ -137,33 +137,44 @@ fn make_worker_thread(
         let td = &tds[id];
         unsafe { *td.get() = Some(ThreadData::new(shared.clone())) };
 
+        enum AfterRecv {
+            DoNothing,
+            SearchEnd,
+            Quit,
+        }
+
         loop {
-            match channel.recv(|m| m.clone()) {
-                Msg::Ping => {}
-                Msg::Quit => break,
-                Msg::Clear => unsafe { *td.get() = Some(ThreadData::new(shared.clone())) },
+            match channel.recv(|m| match m {
+                Msg::Ping => AfterRecv::DoNothing,
+                Msg::Quit => AfterRecv::Quit,
+                Msg::Clear => {
+                    unsafe { *td.get() = Some(ThreadData::new(shared.clone())) };
+                    AfterRecv::DoNothing
+                }
                 Msg::Go(board, time_manager, report, multi_pv) => {
-                    {
-                        let td = unsafe { td.get().as_mut().unwrap().as_mut().unwrap() };
+                    let td = unsafe { td.get().as_mut().unwrap().as_mut().unwrap() };
 
-                        td.board = board;
+                    td.board = board.clone();
 
-                        if id == 0 {
-                            td.time_manager = time_manager;
-                            td.multi_pv = multi_pv;
-                            search::start(td, report);
-                            td.shared.status.set(Status::STOPPED);
-                        } else {
-                            td.time_manager = TimeManager::new(Limits::Infinite, 0, 0);
-                            search::start(td, Report::None);
-                        }
+                    if id == 0 {
+                        td.time_manager = time_manager.clone();
+                        td.multi_pv = *multi_pv;
+                        search::start(td, *report);
+                        td.shared.status.set(Status::STOPPED);
+                    } else {
+                        td.time_manager = TimeManager::new(Limits::Infinite, 0, 0);
+                        search::start(td, Report::None);
                     }
 
-                    if id == 0 && report != Report::None {
-                        let tds: Vec<_> =
-                            tds.iter().map(|td| unsafe { td.get().as_mut().unwrap().as_ref().unwrap() }).collect();
-                        search::end(&tds);
-                    }
+                    if id == 0 && *report != Report::None { AfterRecv::SearchEnd } else { AfterRecv::DoNothing }
+                }
+            }) {
+                AfterRecv::DoNothing => {}
+                AfterRecv::Quit => break,
+                AfterRecv::SearchEnd => {
+                    let tds: Vec<_> =
+                        tds.iter().map(|td| unsafe { td.get().as_mut().unwrap().as_ref().unwrap() }).collect();
+                    search::end(&tds);
                 }
             }
         }
