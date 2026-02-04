@@ -41,16 +41,16 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
     let mut settings = Settings::default();
     let mut threads = ThreadPool::new(shared.clone());
 
+    let rx = spawn_listener(shared.clone());
+
     let mut mode = if buffer.is_empty() { Mode::Uci } else { Mode::Cli };
 
     loop {
         let message = if let Some(cmd) = buffer.pop_front() {
             cmd
         } else if mode == Mode::Uci {
-            let mut message = String::new();
-            match std::io::stdin().read_line(&mut message) {
-                Ok(0) => "quit".to_string(), // EOF received
-                Ok(_) => message,
+            match rx.recv() {
+                Ok(cmd) => cmd,
                 Err(_) => break,
             }
         } else {
@@ -58,17 +58,6 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
         };
 
         let tokens = message.split_whitespace().collect::<Vec<_>>();
-
-        if shared.status.get() == Status::RUNNING {
-            match tokens.as_slice() {
-                ["isready"] | ["quit"] | ["stop"] => {}
-                // According to the UCI specs, commands that are unexpected
-                // in the current state should be ignored silently.
-                // (https://backscattering.de/chess/uci/#unexpected)
-                _ => continue,
-            }
-        }
-
         match tokens.as_slice() {
             ["uci"] => {
                 uci();
@@ -84,7 +73,6 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
 
             ["stop"] => shared.status.set(Status::STOPPED),
             ["quit"] => {
-                shared.status.set(Status::STOPPED);
                 drop(threads);
                 break;
             }
@@ -123,6 +111,43 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
             }
         }
     }
+}
+
+fn spawn_listener(shared: Arc<SharedContext>) -> std::sync::mpsc::Receiver<String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        loop {
+            let mut message = String::new();
+
+            if std::io::stdin().read_line(&mut message).unwrap() == 0 {
+                // EOF received
+                if shared.status.get() != Status::RUNNING {
+                    let _ = tx.send("quit".to_string());
+                }
+            }
+
+            match message.trim_end() {
+                "isready" => println!("readyok"),
+                "stop" => shared.status.set(Status::STOPPED),
+                "quit" => {
+                    shared.status.set(Status::STOPPED);
+                    let _ = tx.send("quit".to_string());
+                    break;
+                }
+                _ => {
+                    // According to the UCI specs, commands that are unexpected
+                    // in the current state should be ignored silently.
+                    // (https://backscattering.de/chess/uci/#unexpected)
+                    if shared.status.get() != Status::RUNNING {
+                        let _ = tx.send(message);
+                    }
+                }
+            }
+        }
+    });
+
+    rx
 }
 
 fn uci() {
