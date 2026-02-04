@@ -93,8 +93,7 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
             ["compiler"] => compiler(),
             ["eval"] => {
                 let board = threads.board().clone();
-                let mut td = threads.main_thread().write().unwrap();
-                let td = td.as_mut().unwrap();
+                let td = unsafe { threads.main_thread().get().as_mut().unwrap().as_mut().unwrap() };
                 td.board = board;
                 eval(td);
             }

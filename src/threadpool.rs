@@ -1,15 +1,17 @@
-use std::sync::{Arc, RwLock};
-
 use crate::{
     board::Board,
     search::{self, Report},
     thread::{SharedContext, Status, ThreadData},
     time::{Limits, TimeManager},
 };
+use std::sync::Arc;
 
 mod channel;
+mod sync_unsafe_cell;
 
-type ThreadDataVec = Vec<Arc<RwLock<Option<ThreadData>>>>;
+pub use sync_unsafe_cell::SyncUnsafeCell;
+
+type ThreadDataVec = Arc<Vec<SyncUnsafeCell<Option<ThreadData>>>>;
 
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -39,11 +41,26 @@ impl ThreadPool {
     }
 
     pub fn new(shared: Arc<SharedContext>) -> Self {
-        let tds = vec![Arc::new(RwLock::new(None))];
+        Self::construct(shared, 1)
+    }
 
-        let (mut tx, rxs) = channel::channel(1);
-        let workers = make_worker_threads(shared.clone(), &tds, 1, rxs);
-        assert!(workers.len() == 1);
+    pub fn set_count(&mut self, threads: usize) {
+        self.channel.send(&Msg::Quit);
+        self.workers.drain(..).for_each(WorkerThread::join);
+
+        *self = Self::construct(self.shared.clone(), threads);
+    }
+
+    fn construct(shared: Arc<SharedContext>, threads: usize) -> Self {
+        let tds = Arc::new({
+            let mut v = Vec::with_capacity(threads);
+            (0..threads).for_each(|_| v.push(SyncUnsafeCell::new(None)));
+            v
+        });
+
+        let (mut tx, rxs) = channel::channel(threads);
+        let workers = make_worker_threads(shared.clone(), &tds, threads, rxs);
+        assert!(workers.len() == threads);
 
         // SAFETY: Ensure all of tds have been initialized.
         tx.send(&Msg::Ping);
@@ -57,26 +74,7 @@ impl ThreadPool {
         }
     }
 
-    pub fn set_count(&mut self, threads: usize) {
-        self.channel.send(&Msg::Quit);
-        self.workers.drain(..).for_each(WorkerThread::join);
-
-        self.tds = {
-            let mut v = Vec::with_capacity(threads);
-            (0..threads).for_each(|_| v.push(Arc::new(RwLock::new(None))));
-            v
-        };
-
-        let (tx, rxs) = channel::channel(threads);
-        self.channel = tx;
-        self.workers = make_worker_threads(self.shared.clone(), &self.tds, threads, rxs);
-        assert!(self.workers.len() == threads);
-
-        // SAFETY: Ensure all of tds have been initialized.
-        self.channel.send(&Msg::Ping);
-    }
-
-    pub fn main_thread(&mut self) -> &RwLock<Option<ThreadData>> {
+    pub fn main_thread(&mut self) -> &SyncUnsafeCell<Option<ThreadData>> {
         &self.tds[0]
     }
 
@@ -126,10 +124,8 @@ impl WorkerThread {
 }
 
 fn make_worker_thread(
-    shared: Arc<SharedContext>, tds: &ThreadDataVec, id: usize, bind: bool, mut channel: channel::Receiver<Msg>,
+    shared: Arc<SharedContext>, tds: ThreadDataVec, id: usize, bind: bool, mut channel: channel::Receiver<Msg>,
 ) -> WorkerThread {
-    let tds = tds.clone();
-
     let handle = std::thread::spawn(move || {
         #[cfg(feature = "numa")]
         if bind {
@@ -138,25 +134,17 @@ fn make_worker_thread(
         #[cfg(not(feature = "numa"))]
         let _ = bind;
 
-        let td = tds[id].clone();
-        {
-            let mut td = td.write().unwrap();
-            *td = Some(ThreadData::new(shared));
-        }
+        let td = &tds[id];
+        unsafe { *td.get() = Some(ThreadData::new(shared.clone())) };
 
         loop {
             match channel.recv(|m| m.clone()) {
                 Msg::Ping => {}
                 Msg::Quit => break,
-                Msg::Clear => {
-                    let mut td = td.write().unwrap();
-                    let shared = td.as_ref().unwrap().shared.clone();
-                    *td = Some(ThreadData::new(shared));
-                }
+                Msg::Clear => unsafe { *td.get() = Some(ThreadData::new(shared.clone())) },
                 Msg::Go(board, time_manager, report, multi_pv) => {
                     {
-                        let mut td = td.write().unwrap();
-                        let td = td.as_mut().unwrap();
+                        let td = unsafe { td.get().as_mut().unwrap().as_mut().unwrap() };
 
                         td.board = board;
 
@@ -172,8 +160,8 @@ fn make_worker_thread(
                     }
 
                     if id == 0 && report != Report::None {
-                        let tds = tds.iter().map(|td| td.read().unwrap()).collect::<Vec<_>>();
-                        let tds = tds.iter().map(|td| td.as_ref().unwrap()).collect::<Vec<_>>();
+                        let tds: Vec<_> =
+                            tds.iter().map(|td| unsafe { td.get().as_mut().unwrap().as_ref().unwrap() }).collect();
                         search::end(&tds);
                     }
                 }
@@ -191,5 +179,5 @@ fn make_worker_threads(
     let concurrency = std::thread::available_parallelism().map_or(1, |n| n.get());
     let bind = num_threads >= concurrency / 2;
 
-    channels.enumerate().map(|(id, ch)| make_worker_thread(shared.clone(), tds, id, bind, ch)).collect()
+    channels.enumerate().map(|(id, ch)| make_worker_thread(shared.clone(), tds.clone(), id, bind, ch)).collect()
 }
