@@ -12,6 +12,7 @@ mod channel;
 type ThreadDataVec = Vec<Arc<RwLock<Option<ThreadData>>>>;
 
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 enum Msg {
     Ping,
     Go(Board, TimeManager, Report, usize),
@@ -60,7 +61,11 @@ impl ThreadPool {
         self.channel.send(&Msg::Quit);
         self.workers.drain(..).for_each(WorkerThread::join);
 
-        self.tds = vec![Arc::new(RwLock::new(None)); threads];
+        self.tds = {
+            let mut v = Vec::with_capacity(threads);
+            (0..threads).for_each(|_| v.push(Arc::new(RwLock::new(None))));
+            v
+        };
 
         let (tx, rxs) = channel::channel(threads);
         self.channel = tx;
@@ -72,7 +77,7 @@ impl ThreadPool {
     }
 
     pub fn main_thread(&mut self) -> &RwLock<Option<ThreadData>> {
-        &*self.tds[0]
+        &self.tds[0]
     }
 
     pub fn len(&self) -> usize {
