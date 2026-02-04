@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
@@ -10,7 +9,7 @@ use crate::{
     time::{Limits, TimeManager},
     tools,
     transposition::DEFAULT_TT_SIZE,
-    types::{Color, MAX_MOVES, Move, Score, Square, is_decisive, is_loss, is_win},
+    types::{Color, MAX_MOVES, Square},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -80,13 +79,22 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
 
             // Non-UCI commands
             ["compiler"] => compiler(),
-            ["eval"] => eval(threads.main_thread()),
-            ["d"] => display(threads.main_thread()),
+            ["eval"] => {
+                let board = threads.board().clone();
+                let mut td = threads.main_thread().write().unwrap();
+                let td = td.as_mut().unwrap();
+                td.board = board;
+                eval(td);
+            }
+            ["d"] => display(threads.board()),
             ["bench", args @ ..] => match mode {
                 Mode::Uci => tools::bench::<true>(args),
                 Mode::Cli => tools::bench::<false>(args),
             },
-            ["perft", depth] => tools::perft(depth.parse().unwrap(), &mut threads.main_thread().board),
+            ["perft", depth] => {
+                let mut board = threads.board().clone();
+                tools::perft(depth.parse().unwrap(), &mut board);
+            }
             ["perft"] => eprintln!("Usage: perft <depth>"),
 
             // Ignore empty lines
@@ -95,10 +103,13 @@ pub fn message_loop(mut buffer: VecDeque<String>) {
             _ => eprintln!("Unknown command: '{}'", message.trim_end()),
         }
 
-        // Auto-exit after last CLI command
-        if matches!(mode, Mode::Cli) && buffer.is_empty() {
-            drop(threads);
-            break;
+        if matches!(mode, Mode::Cli) {
+            threads.wait();
+            // Auto-exit after last CLI command
+            if buffer.is_empty() {
+                drop(threads);
+                break;
+            }
         }
     }
 }
@@ -179,64 +190,11 @@ fn reset(threads: &mut ThreadPool, shared: &Arc<SharedContext>) {
 }
 
 fn go(threads: &mut ThreadPool, settings: &Settings, shared: &Arc<SharedContext>, tokens: &[&str]) {
-    let board = &threads.main_thread().board;
+    let board = threads.board();
     let limits = parse_limits(board.side_to_move(), tokens);
     let time_manager = TimeManager::new(limits, board.fullmove_number(), settings.move_overhead);
 
-    threads.main_thread().multi_pv = settings.multi_pv;
-    threads.execute_searches(time_manager, settings.report, shared);
-
-    let min_score = threads.iter().map(|v| v.root_moves[0].score).min().unwrap();
-    let vote_value = |td: &ThreadData| (td.root_moves[0].score - min_score + 10) * td.completed_depth;
-
-    let mut votes: HashMap<&Move, i32> = HashMap::new();
-    for result in threads.iter() {
-        *votes.entry(&result.root_moves[0].mv).or_default() += vote_value(result);
-    }
-
-    let mut best = 0;
-
-    if !matches!(threads[best].time_manager.limits(), Limits::Depth(_)) && threads[0].multi_pv == 1 {
-        for current in 1..threads.len() {
-            let is_better_candidate = || -> bool {
-                let best = &threads[best];
-                let current = &threads[current];
-
-                if is_win(best.root_moves[0].score) {
-                    return current.root_moves[0].score > best.root_moves[0].score;
-                }
-
-                if current.root_moves[0].score != -Score::INFINITE
-                    && best.root_moves[0].score != -Score::INFINITE
-                    && is_loss(best.root_moves[0].score)
-                {
-                    return current.root_moves[0].score < best.root_moves[0].score;
-                }
-
-                if current.root_moves[0].score != -Score::INFINITE && is_decisive(current.root_moves[0].score) {
-                    return true;
-                }
-
-                let best_vote = votes[&best.root_moves[0].mv];
-                let current_vote = votes[&current.root_moves[0].mv];
-
-                !is_loss(current.root_moves[0].score)
-                    && (current_vote > best_vote
-                        || (current_vote == best_vote && vote_value(current) > vote_value(best)))
-            };
-
-            if is_better_candidate() {
-                best = current;
-            }
-        }
-    }
-
-    if best != 0 {
-        threads[best].print_uci_info(threads[best].completed_depth);
-    }
-
-    println!("bestmove {}", threads[best].root_moves[0].mv.to_uci(&threads.main_thread().board));
-    crate::misc::dbg_print();
+    threads.execute_searches(time_manager, settings.report, settings.multi_pv, shared);
 }
 
 fn position(threads: &mut ThreadPool, settings: &Settings, mut tokens: &[&str]) {
@@ -269,9 +227,7 @@ fn position(threads: &mut ThreadPool, settings: &Settings, mut tokens: &[&str]) 
         }
     }
 
-    for thread in threads.iter_mut() {
-        thread.board = board.clone();
-    }
+    threads.set_board(board);
 }
 
 fn make_uci_move(board: &mut Board, uci_move: &str) {
@@ -336,13 +292,13 @@ fn eval(td: &mut ThreadData) {
     println!("{eval}");
 }
 
-fn display(td: &ThreadData) {
+fn display(board: &Board) {
     println!(" +---+---+---+---+---+---+---+---+");
     for rank in (0..8).rev() {
         print!(" |");
         for file in 0..8 {
             let square = Square::from_rank_file(rank, file);
-            let piece = td.board.piece_on(square);
+            let piece = board.piece_on(square);
             let symbol = piece.try_into().unwrap_or(' ');
             print!(" {symbol} |");
         }
@@ -352,7 +308,7 @@ fn display(td: &ThreadData) {
     println!("   a   b   c   d   e   f   g   h");
     println!();
 
-    println!("FEN: {}", td.board.to_fen());
+    println!("FEN: {}", board.to_fen());
 }
 
 fn parse_limits(color: Color, tokens: &[&str]) -> Limits {

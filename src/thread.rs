@@ -264,6 +264,9 @@ impl ThreadData {
     }
 }
 
+unsafe impl Send for ThreadData {}
+unsafe impl Sync for ThreadData {}
+
 #[derive(Clone)]
 pub struct RootMove {
     pub mv: Move,
