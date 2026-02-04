@@ -233,6 +233,63 @@ pub fn start(td: &mut ThreadData, report: Report) {
     td.previous_best_score = td.root_moves[0].score;
 }
 
+pub fn end(tds: &[&ThreadData]) {
+    use crate::time::Limits;
+    use std::collections::HashMap;
+
+    let min_score = tds.iter().map(|v| v.root_moves[0].score).min().unwrap();
+    let vote_value = |td: &ThreadData| (td.root_moves[0].score - min_score + 10) * td.completed_depth;
+
+    let mut votes: HashMap<&Move, i32> = HashMap::new();
+    for result in tds.iter() {
+        *votes.entry(&result.root_moves[0].mv).or_default() += vote_value(result);
+    }
+
+    let mut best = 0;
+
+    if !matches!(tds[best].time_manager.limits(), Limits::Depth(_)) && tds[0].multi_pv == 1 {
+        for current in 1..tds.len() {
+            let is_better_candidate = || -> bool {
+                let best = &tds[best];
+                let current = &tds[current];
+
+                if is_win(best.root_moves[0].score) {
+                    return current.root_moves[0].score > best.root_moves[0].score;
+                }
+
+                if current.root_moves[0].score != -Score::INFINITE
+                    && best.root_moves[0].score != -Score::INFINITE
+                    && is_loss(best.root_moves[0].score)
+                {
+                    return current.root_moves[0].score < best.root_moves[0].score;
+                }
+
+                if current.root_moves[0].score != -Score::INFINITE && is_decisive(current.root_moves[0].score) {
+                    return true;
+                }
+
+                let best_vote = votes[&best.root_moves[0].mv];
+                let current_vote = votes[&current.root_moves[0].mv];
+
+                !is_loss(current.root_moves[0].score)
+                    && (current_vote > best_vote
+                        || (current_vote == best_vote && vote_value(current) > vote_value(best)))
+            };
+
+            if is_better_candidate() {
+                best = current;
+            }
+        }
+    }
+
+    if best != 0 {
+        tds[best].print_uci_info(tds[best].completed_depth);
+    }
+
+    println!("bestmove {}", tds[best].root_moves[0].mv.to_uci(&tds[0].board));
+    crate::misc::dbg_print();
+}
+
 fn search<NODE: NodeType>(
     td: &mut ThreadData, mut alpha: i32, mut beta: i32, depth: i32, cut_node: bool, ply: isize,
 ) -> i32 {
