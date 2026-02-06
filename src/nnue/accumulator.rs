@@ -322,6 +322,7 @@ impl ThreatAccumulator {
             } else {
                 subs.maybe_push(index >= 0, index as usize);
             }
+            prefetch_threat_index(index);
         }
 
         #[cfg(target_feature = "avx512f")]
@@ -400,4 +401,22 @@ unsafe fn add1(output: &mut [i16], add1: usize) {
 
         *vacc.add(i).cast() = v;
     }
+}
+
+fn prefetch_threat_index(index: isize) {
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        use std::arch::x86_64::{_MM_HINT_T2, _mm_prefetch};
+
+        if index >= 0 {
+            for i in (0..L1_SIZE).step_by(64) {
+                let ptr = PARAMETERS.ft_threat_weights.get_unchecked(index as usize).as_ptr().add(i);
+                _mm_prefetch::<_MM_HINT_T2>(ptr);
+            }
+        }
+    }
+
+    // No prefetching for non-x86_64 architectures
+    #[cfg(not(target_arch = "x86_64"))]
+    let _ = index;
 }
