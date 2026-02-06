@@ -194,29 +194,23 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
     let mut count = 0;
 
     let increment = 0x2020202020202020;
-    let mut base0 = 0x0706050403020100;
-    let mut base1 = 0x0f0e0d0c0b0a0908;
-    let mut base2 = 0x1716151413121110;
-    let mut base3 = 0x1f1e1d1c1b1a1918;
+    let mut base0 = 0x0b0a090803020100;
+    let mut base1 = 0x1b1a191813121110;
+    let mut base2 = 0x0f0e0d0c07060504;
+    let mut base3 = 0x1f1e1d1c17161514;
 
     for i in (0..L1_SIZE).step_by(8 * simd::I16_LANES) {
         let vector0 = *ft_out.as_ptr().add(i).cast();
         let vector1 = *ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast();
         let vector2 = *ft_out.as_ptr().add(i + 4 * simd::I16_LANES).cast();
         let vector3 = *ft_out.as_ptr().add(i + 6 * simd::I16_LANES).cast();
-        let mask01 = _mm256_packs_epi32(
-            _mm256_permute2x128_si256::<0x20>(vector0, vector1),
-            _mm256_permute2x128_si256::<0x31>(vector0, vector1),
-        );
-        let mask23 = _mm256_packs_epi32(
-            _mm256_permute2x128_si256::<0x20>(vector2, vector3),
-            _mm256_permute2x128_si256::<0x31>(vector2, vector3),
-        );
+        let mask01 = _mm256_packs_epi32(vector0, vector1);
+        let mask23 = _mm256_packs_epi32(vector2, vector3);
         let mask = _mm256_packs_epi16(mask01, mask23);
         let mask = _mm256_cmpgt_epi8(mask, _mm256_setzero_si256());
         let mask0 = _mm256_extract_epi64::<0>(mask) as u64;
-        let mask1 = _mm256_extract_epi64::<2>(mask) as u64;
-        let mask2 = _mm256_extract_epi64::<1>(mask) as u64;
+        let mask1 = _mm256_extract_epi64::<1>(mask) as u64;
+        let mask2 = _mm256_extract_epi64::<2>(mask) as u64;
         let mask3 = _mm256_extract_epi64::<3>(mask) as u64;
 
         let compressed0 = _pext_u64(base0, mask0);
