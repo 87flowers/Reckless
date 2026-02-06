@@ -193,23 +193,35 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);
     let mut count = 0;
 
-    let increment = 0x0808080808080808;
-    let mut base: u64 = 0x0706050403020100;
+    let increment = 0x1010101010101010;
+    let mut base0 = 0x0706050403020100;
+    let mut base1 = 0x0f0e0d0c0b0a0908;
 
-    for i in (0..L1_SIZE).step_by(2 * simd::I16_LANES) {
-        let mask = *ft_out.as_ptr().add(i).cast();
-        let mask = _mm_packs_epi32(_mm256_castsi256_si128(mask), _mm256_extracti128_si256::<1>(mask));
-        let mask = _mm_packs_epi16(mask, _mm_setzero_si128());
-        let mask = _mm_cmpgt_epi8(mask, _mm_setzero_si128());
-        let mask = _mm_extract_epi64::<0>(mask) as u64;
+    for i in (0..L1_SIZE).step_by(4 * simd::I16_LANES) {
+        let vector0 = *ft_out.as_ptr().add(i).cast();
+        let vector1 = *ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast();
+        let mask = _mm256_packs_epi32(
+            _mm256_permute2x128_si256::<0x20>(vector0, vector1),
+            _mm256_permute2x128_si256::<0x31>(vector0, vector1),
+        );
+        let mask = _mm256_packs_epi16(mask, _mm256_setzero_si256());
+        let mask = _mm256_cmpgt_epi8(mask, _mm256_setzero_si256());
+        let mask0 = _mm256_extract_epi64::<0>(mask) as u64;
+        let mask1 = _mm256_extract_epi64::<2>(mask) as u64;
 
-        let compressed = _pext_u64(base, mask);
+        let compressed0 = _pext_u64(base0, mask0);
+        let compressed1 = _pext_u64(base1, mask1);
 
         let store = indexes.as_mut_ptr().add(count).cast();
-        std::ptr::write_unaligned(store, compressed);
+        std::ptr::write_unaligned(store, compressed0);
+        count += (mask0.count_ones() / 8) as usize;
 
-        count += (mask.count_ones() / 8) as usize;
-        base += increment;
+        let store = indexes.as_mut_ptr().add(count).cast();
+        std::ptr::write_unaligned(store, compressed1);
+        count += (mask1.count_ones() / 8) as usize;
+
+        base0 += increment;
+        base1 += increment;
     }
 
     (indexes, count)
