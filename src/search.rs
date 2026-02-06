@@ -207,6 +207,25 @@ pub fn start(td: &mut ThreadData, report: Report) {
             break;
         }
 
+        let singular_root = if td.multi_pv == 1 && td.id == 0 && depth >= 6 && td.root_moves[0].score.abs() < 700 {
+            let root_move = td.root_moves[0].mv;
+            let root_move_score = td.root_moves[0].score;
+            let singular_beta = root_move_score - 420;
+            let singular_depth = (depth - 1) / 2;
+
+            td.stack[0].excluded = root_move;
+            let score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, false, 0);
+            td.stack[0].excluded = Move::NULL;
+
+            if td.stopped {
+                break;
+            }
+
+            score < singular_beta
+        } else {
+            false
+        };
+
         let multiplier = || {
             let nodes_factor = 2.15 - 1.5 * (td.root_moves[0].nodes as f32 / td.nodes() as f32);
 
@@ -218,26 +237,13 @@ pub fn start(td: &mut ThreadData, report: Report) {
 
             let best_move_stability = 1.0 + best_move_changes as f32 / 4.0;
 
-            nodes_factor * pv_stability * eval_stability * score_trend * best_move_stability
+            let singular_root = if singular_root { 0.7 } else { 1.0 };
+
+            nodes_factor * pv_stability * eval_stability * score_trend * best_move_stability * singular_root
         };
 
         if td.time_manager.soft_limit(td, multiplier) {
             break;
-        }
-
-        if td.multi_pv == 1 && td.id == 0 && depth >= 6 && td.root_moves[0].score.abs() < 700 {
-            let root_move = td.root_moves[0].mv;
-            let root_move_score = td.root_moves[0].score;
-            let singular_beta = root_move_score - 420;
-            let singular_depth = (depth - 1) / 2;
-
-            td.stack[0].excluded = root_move;
-            let score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, false, 0);
-            td.stack[0].excluded = Move::NULL;
-
-            if td.stopped || score < singular_beta {
-                break;
-            }
         }
     }
 
