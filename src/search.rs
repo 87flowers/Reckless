@@ -224,6 +224,21 @@ pub fn start(td: &mut ThreadData, report: Report) {
         if td.time_manager.soft_limit(td, multiplier) {
             break;
         }
+
+        if td.multi_pv == 1 && td.id == 0 && depth >= 6 && td.root_moves[0].score.abs() < 700 {
+            let root_move = td.root_moves[0].mv;
+            let root_move_score = td.root_moves[0].score;
+            let singular_beta = root_move_score - 420;
+            let singular_depth = (depth - 1) / 2;
+
+            td.stack[0].excluded = root_move;
+            let score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, false, 0);
+            td.stack[0].excluded = Move::NULL;
+
+            if td.stopped || score < singular_beta {
+                break;
+            }
+        }
     }
 
     if report == Report::Minimal {

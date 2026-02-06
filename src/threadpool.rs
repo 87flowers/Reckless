@@ -83,6 +83,7 @@ impl ThreadPool {
 
             handlers.push(scope.spawn_into(
                 || {
+                    t1.id = 0;
                     t1.time_manager = time_manager;
 
                     search::start(t1, report);
