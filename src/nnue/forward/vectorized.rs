@@ -181,37 +181,4 @@ pub unsafe fn find_nnz(
 }
 
 #[cfg(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))]
-pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
-    use std::arch::x86_64::*;
-
-    let mut indexes = Aligned::new([0; L1_SIZE / 4]);
-    let mut count = 0;
-
-    let increment = _mm512_set1_epi8(64);
-    let mut base = _mm512_set_epi8(
-        63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36,
-        35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8,
-        7, 6, 5, 4, 3, 2, 1, 0,
-    );
-
-    for i in (0..L1_SIZE).step_by(8 * simd::I16_LANES) {
-        let mask0 = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast());
-        let mask1 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast());
-        let mask2 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 4 * simd::I16_LANES).cast());
-        let mask3 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 6 * simd::I16_LANES).cast());
-
-        let mask01 = _mm512_kunpackw(mask1 as u32, mask0 as u32);
-        let mask23 = _mm512_kunpackw(mask3 as u32, mask2 as u32);
-        let mask = _mm512_kunpackd(mask23 as u64, mask01 as u64);
-
-        let compressed = _mm512_maskz_compress_epi8(mask, base);
-
-        let store = indexes.as_mut_ptr().add(count).cast();
-        _mm512_storeu_si512(store, compressed);
-
-        count += mask.count_ones() as usize;
-        base = _mm512_add_epi8(base, increment);
-    }
-
-    (indexes, count)
-}
+pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {}
