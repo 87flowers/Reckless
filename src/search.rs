@@ -211,7 +211,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
             let root_move = td.root_moves[0].mv;
             let root_move_score = td.root_moves[0].score;
             let singular_beta = root_move_score - (420 - depth * 20).max(150);
-            let singular_depth = (depth - 1) / 2;
+            let singular_depth = ((depth - 1) / 2).min(15);
 
             td.stack[0].excluded = root_move;
             let score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, false, 0);
