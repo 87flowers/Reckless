@@ -52,7 +52,7 @@ pub unsafe fn activate_ft(pst: &PstAccumulator, threat: &ThreatAccumulator, stm:
     output
 }
 
-pub unsafe fn propagate_l1(ft_out: Aligned<[u8; L1_SIZE]>, nnz: &[u16], bucket: usize) -> Aligned<[f32; L2_SIZE]> {
+pub unsafe fn propagate_l1(ft_out: Aligned<[u8; L1_SIZE]>, nnz: &[u8], bucket: usize) -> Aligned<[f32; L2_SIZE]> {
     const CHUNKS: usize = 4;
 
     let mut pre_activations = Aligned::new([simd::zeroed(); L2_SIZE / simd::F32_LANES]);
@@ -183,39 +183,37 @@ pub unsafe fn find_nnz(
 }
 
 #[cfg(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))]
-pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u16; L1_SIZE / 4]>, usize) {
+pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
     use std::arch::x86_64::*;
 
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);
     let mut count = 0;
 
-    let increment = _mm512_set1_epi16(64);
-    let mut base01 = _mm512_set_epi16(
-        31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2,
-        1, 0,
+    let increment = _mm512_set1_epi8(64);
+    let mut base = _mm512_set_epi8(
+        63, 62, 61, 60, 47, 46, 45, 44, 31, 30, 29, 28, 15, 14, 13, 12, 59, 58, 57, 56, 43, 42, 41, 40, 27, 26, 25, 24,
+        11, 10, 9, 8, 55, 54, 53, 52, 39, 38, 37, 36, 23, 22, 21, 20, 7, 6, 5, 4, 51, 50, 49, 48, 35, 34, 33, 32, 19,
+        18, 17, 16, 3, 2, 1, 0,
     );
-    let mut base23 = _mm512_add_epi16(base01, _mm512_set1_epi16(32));
 
     for i in (0..L1_SIZE).step_by(8 * simd::I16_LANES) {
-        let mask0 = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast());
-        let mask1 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast());
-        let mask2 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 4 * simd::I16_LANES).cast());
-        let mask3 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 6 * simd::I16_LANES).cast());
-        let mask01 = _mm512_kunpackw(mask1 as u32, mask0 as u32);
-        let mask23 = _mm512_kunpackw(mask3 as u32, mask2 as u32);
-        let compressed01 = _mm512_maskz_compress_epi16(mask01, base01);
-        let compressed23 = _mm512_maskz_compress_epi16(mask23, base23);
+        let v0 = _mm512_load_si512(ft_out.as_ptr().add(i + 0 * simd::I16_LANES).cast());
+        let v1 = _mm512_load_si512(ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast());
+        let v2 = _mm512_load_si512(ft_out.as_ptr().add(i + 4 * simd::I16_LANES).cast());
+        let v3 = _mm512_load_si512(ft_out.as_ptr().add(i + 6 * simd::I16_LANES).cast());
+
+        let v01 = _mm512_packus_epi32(v0, v1);
+        let v23 = _mm512_packus_epi32(v2, v3);
+        let v0123 = _mm512_packs_epi16(v01, v23);
+
+        let mask = _mm512_test_epi8_mask(v0123, v0123);
+        let compressed = _mm512_maskz_compress_epi8(mask, base);
 
         let store = indexes.as_mut_ptr().add(count).cast();
-        _mm512_storeu_si512(store, compressed01);
-        count += mask01.count_ones() as usize;
+        _mm512_storeu_si512(store, compressed);
 
-        let store = indexes.as_mut_ptr().add(count).cast();
-        _mm512_storeu_si512(store, compressed23);
-        count += mask23.count_ones() as usize;
-
-        base01 = _mm512_add_epi16(base01, increment);
-        base23 = _mm512_add_epi16(base23, increment);
+        count += mask.count_ones() as usize;
+        base = _mm512_add_epi8(base, increment);
     }
 
     (indexes, count)
