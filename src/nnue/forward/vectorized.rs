@@ -208,31 +208,28 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
         let mask23 = _mm256_packs_epi32(vector2, vector3);
         let mask = _mm256_packs_epi16(mask01, mask23);
         let mask = _mm256_cmpgt_epi8(mask, _mm256_setzero_si256());
-        let mask0 = _mm256_extract_epi64::<0>(mask) as u64;
-        let mask1 = _mm256_extract_epi64::<1>(mask) as u64;
-        let mask2 = _mm256_extract_epi64::<2>(mask) as u64;
-        let mask3 = _mm256_extract_epi64::<3>(mask) as u64;
+        let mask: [u64; 4] = std::mem::transmute(mask);
 
-        let compressed0 = _pext_u64(base0, mask0);
-        let compressed1 = _pext_u64(base1, mask1);
-        let compressed2 = _pext_u64(base2, mask2);
-        let compressed3 = _pext_u64(base3, mask3);
+        let compressed0 = _pext_u64(base0, mask[0]);
+        let compressed1 = _pext_u64(base1, mask[1]);
+        let compressed2 = _pext_u64(base2, mask[2]);
+        let compressed3 = _pext_u64(base3, mask[3]);
 
         let store = indexes.as_mut_ptr().add(count).cast();
         std::ptr::write_unaligned(store, compressed0);
-        count += (mask0.count_ones() / 8) as usize;
+        count += (mask[0].count_ones() / 8) as usize;
 
         let store = indexes.as_mut_ptr().add(count).cast();
         std::ptr::write_unaligned(store, compressed1);
-        count += (mask1.count_ones() / 8) as usize;
+        count += (mask[1].count_ones() / 8) as usize;
 
         let store = indexes.as_mut_ptr().add(count).cast();
         std::ptr::write_unaligned(store, compressed2);
-        count += (mask2.count_ones() / 8) as usize;
+        count += (mask[2].count_ones() / 8) as usize;
 
         let store = indexes.as_mut_ptr().add(count).cast();
         std::ptr::write_unaligned(store, compressed3);
-        count += (mask3.count_ones() / 8) as usize;
+        count += (mask[3].count_ones() / 8) as usize;
 
         base0 += increment;
         base1 += increment;
