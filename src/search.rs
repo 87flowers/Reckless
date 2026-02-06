@@ -210,7 +210,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
         let singular_root = if td.multi_pv == 1 && td.id == 0 && depth >= 6 && td.root_moves[0].score.abs() < 3000 {
             let root_move = td.root_moves[0].mv;
             let root_move_score = td.root_moves[0].score;
-            let singular_beta = root_move_score - (420 - depth * 20).max(150);
+            let singular_beta = root_move_score - (420 - (depth - 6) * 30).max(150);
             let singular_depth = ((depth - 1) / 2).min(15);
 
             td.stack[0].excluded = root_move;
