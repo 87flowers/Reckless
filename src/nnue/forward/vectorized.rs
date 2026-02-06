@@ -152,11 +152,19 @@ pub unsafe fn propagate_l3(l2_out: Aligned<[f32; L3_SIZE]>, bucket: usize) -> f3
     simd::horizontal_sum(output) + PARAMETERS.l3_biases[bucket]
 }
 
-#[cfg(all(
-    not(all(target_feature = "bmi2", target_feature = "avx2")),
-    not(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))
-))]
+#[cfg(not(all(target_feature = "avx512vl", target_feature = "avx512vbmi")))]
 pub unsafe fn find_nnz(
+    ft_out: &Aligned<[u8; L1_SIZE]>, nnz_table: &[SparseEntry],
+) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
+    #[cfg(all(target_feature = "bmi2", target_feature = "avx2"))]
+    if simd::fast_bmi2() {
+        return find_nnz_bmi2(ft_out, nnz_table);
+    }
+    find_nnz_generic(ft_out, nnz_table)
+}
+
+#[cfg(not(all(target_feature = "avx512vl", target_feature = "avx512vbmi")))]
+pub unsafe fn find_nnz_generic(
     ft_out: &Aligned<[u8; L1_SIZE]>, nnz_table: &[SparseEntry],
 ) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);
@@ -187,7 +195,7 @@ pub unsafe fn find_nnz(
     all(target_feature = "bmi2", target_feature = "avx2"),
     not(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))
 ))]
-pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
+pub unsafe fn find_nnz_bmi2(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
     use std::arch::x86_64::*;
 
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);

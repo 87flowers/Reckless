@@ -9,8 +9,6 @@ mod threats;
 ))]
 mod rays;
 
-pub use threats::initialize;
-
 use crate::{
     board::{Board, BoardObserver},
     nnue::accumulator::{ThreatAccumulator, ThreatDelta},
@@ -633,4 +631,10 @@ impl<T> std::ops::DerefMut for Aligned<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
+}
+
+pub fn initialize() {
+    threats::initialize();
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    simd::init_fast_bmi2();
 }

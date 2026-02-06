@@ -105,3 +105,42 @@ pub unsafe fn nnz_bitmask(x: __m256i) -> u16 {
     let greater_than_zero = _mm256_cmpgt_epi32(x, _mm256_setzero_si256());
     _mm256_movemask_ps(_mm256_castsi256_ps(greater_than_zero)) as u16
 }
+
+static mut FAST_BMI2: bool = false;
+
+#[cfg(target_arch = "x86_64")]
+pub fn init_fast_bmi2() {
+    const AMD: [u8; 12] = *b"AuthenticAMD";
+
+    let (max_cpuid, manufacturer_id) = unsafe {
+        let CpuidResult { eax, ebx, edx, ecx, .. } = __cpuid(0);
+        (eax, std::mem::transmute::<[u32; 3], [u8; 12]>([ebx, edx, ecx]))
+    };
+
+    let has_bmi2 = if max_cpuid >= 7 { (unsafe { __cpuid(7) }.ebx & (1 << 8)) != 0 } else { false };
+    if !has_bmi2 {
+        return;
+    }
+
+    let family = unsafe {
+        let CpuidResult { eax, .. } = __cpuid(1);
+        let family_id = (eax >> 8) & 0xF;
+        let extended_family_id = (eax >> 20) & 0xFF;
+        if family_id < 0xF { family_id } else { extended_family_id + family_id }
+    };
+
+    let fast_bmi2 = if manufacturer_id == AMD {
+        family != 0x17 // Zen 1, Zen 2
+    } else {
+        true
+    };
+
+    unsafe { FAST_BMI2 = fast_bmi2 };
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+pub fn init_fast_bmi2() {}
+
+pub fn fast_bmi2() -> bool {
+    unsafe { FAST_BMI2 }
+}
