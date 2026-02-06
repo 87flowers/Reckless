@@ -194,22 +194,33 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
         7, 6, 5, 4, 3, 2, 1, 0,
     );
 
-    for i in (0..L1_SIZE).step_by(8 * simd::I16_LANES) {
+    for i in (0..L1_SIZE).step_by(16 * simd::I16_LANES) {
         let mask0 = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast());
         let mask1 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 2 * simd::I16_LANES).cast());
         let mask2 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 4 * simd::I16_LANES).cast());
         let mask3 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 6 * simd::I16_LANES).cast());
+        let mask4 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 8 * simd::I16_LANES).cast());
+        let mask5 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 10 * simd::I16_LANES).cast());
+        let mask6 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 12 * simd::I16_LANES).cast());
+        let mask7 = simd::nnz_bitmask(*ft_out.as_ptr().add(i + 14 * simd::I16_LANES).cast());
 
         let mask01 = _mm512_kunpackw(mask1 as u32, mask0 as u32);
         let mask23 = _mm512_kunpackw(mask3 as u32, mask2 as u32);
-        let mask = _mm512_kunpackd(mask23 as u64, mask01 as u64);
+        let mask45 = _mm512_kunpackw(mask5 as u32, mask4 as u32);
+        let mask67 = _mm512_kunpackw(mask7 as u32, mask6 as u32);
+        let mask0123 = _mm512_kunpackd(mask23 as u64, mask01 as u64);
+        let mask4567 = _mm512_kunpackd(mask67 as u64, mask45 as u64);
 
-        let compressed = _mm512_maskz_compress_epi8(mask, base);
-
+        let compressed0123 = _mm512_maskz_compress_epi8(mask0123, base);
         let store = indexes.as_mut_ptr().add(count).cast();
-        _mm512_storeu_si512(store, compressed);
+        _mm512_storeu_si512(store, compressed0123);
+        count += mask0123.count_ones() as usize;
+        base = _mm512_add_epi8(base, increment);
 
-        count += mask.count_ones() as usize;
+        let compressed4567 = _mm512_maskz_compress_epi8(mask4567, base);
+        let store = indexes.as_mut_ptr().add(count).cast();
+        _mm512_storeu_si512(store, compressed4567);
+        count += mask4567.count_ones() as usize;
         base = _mm512_add_epi8(base, increment);
     }
 
