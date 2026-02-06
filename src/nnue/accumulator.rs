@@ -408,11 +408,10 @@ fn prefetch_threat_index(index: isize) {
     unsafe {
         use std::arch::x86_64::{_MM_HINT_T2, _mm_prefetch};
 
-        if index >= 0 {
-            for i in (0..L1_SIZE).step_by(64) {
-                let ptr = PARAMETERS.ft_threat_weights.get_unchecked(index as usize).as_ptr().add(i);
-                _mm_prefetch::<_MM_HINT_T2>(ptr);
-            }
+        let index = index.min(0) as usize;
+        for i in (0..L1_SIZE).step_by(64) {
+            let ptr = PARAMETERS.ft_threat_weights.get_unchecked(index).as_ptr().add(i);
+            _mm_prefetch::<_MM_HINT_T2>(ptr);
         }
     }
 
