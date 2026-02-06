@@ -14,6 +14,8 @@ const BASE_URL: &str = "https://github.com/codedeliveryservice/RecklessNetworks/
 const NETWORK_NAME: &str = "v53-0ba42a8c.nnue";
 
 fn main() {
+    detect_fast_bmi2();
+
     generate_model_env();
     generate_attack_maps();
     generate_compiler_info();
@@ -138,5 +140,34 @@ fn generate_engine_version() {
         println!("cargo:rustc-env=ENGINE_VERSION={version}-{sha}")
     } else {
         println!("cargo:rustc-env=ENGINE_VERSION={version}")
+    }
+}
+
+fn detect_fast_bmi2() {
+    use std::arch::x86_64::*;
+
+    const AMD: [u8; 12] = *b"AuthenticAMD";
+
+    let (max_cpuid, manufacturer_id) = unsafe {
+        let CpuidResult { eax, ebx, edx, ecx, .. } = __cpuid(0);
+        (eax, std::mem::transmute::<[u32; 3], [u8; 12]>([ebx, edx, ecx]))
+    };
+
+    let has_bmi2 = if max_cpuid >= 7 { (unsafe { __cpuid(7) }.ebx & (1 << 8)) != 0 } else { false };
+    if !has_bmi2 {
+        return;
+    }
+
+    let family = unsafe {
+        let CpuidResult { eax, .. } = __cpuid(1);
+        let family_id = (eax >> 8) & 0xF;
+        let extended_family_id = (eax >> 20) & 0xFF;
+        if family_id < 0xF { family_id } else { extended_family_id + family_id }
+    };
+
+    if manufacturer_id == AMD && family == 0x17 {
+        // Zen 1, Zen 2
+        eprintln!("cargo:error=Running on an early Zen processor");
+        std::process::exit(1);
     }
 }
