@@ -152,7 +152,10 @@ pub unsafe fn propagate_l3(l2_out: Aligned<[f32; L3_SIZE]>, bucket: usize) -> f3
     simd::horizontal_sum(output) + PARAMETERS.l3_biases[bucket]
 }
 
-#[cfg(not(all(target_feature = "avx512vl", target_feature = "avx512vbmi")))]
+#[cfg(all(
+    not(all(target_feature = "bmi2", target_feature = "avx2")),
+    not(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))
+))]
 pub unsafe fn find_nnz(
     ft_out: &Aligned<[u8; L1_SIZE]>, nnz_table: &[SparseEntry],
 ) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
@@ -175,6 +178,38 @@ pub unsafe fn find_nnz(
             count += entry.count;
             base += increment;
         }
+    }
+
+    (indexes, count)
+}
+
+#[cfg(all(
+    all(target_feature = "bmi2", target_feature = "avx2"),
+    not(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))
+))]
+pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
+    use std::arch::x86_64::*;
+
+    let mut indexes = Aligned::new([0; L1_SIZE / 4]);
+    let mut count = 0;
+
+    let increment = 0x0808080808080808;
+    let mut base: u64 = 0x0706050403020100;
+
+    for i in (0..L1_SIZE).step_by(2 * simd::I16_LANES) {
+        let mask = *ft_out.as_ptr().add(i).cast();
+        let mask = _mm_packs_epi32(_mm256_castsi256_si128(mask), _mm256_extracti128_si256::<1>(mask));
+        let mask = _mm_packs_epi16(mask, _mm_setzero_si128());
+        let mask = _mm_cmpgt_epi8(mask, _mm_setzero_si128());
+        let mask = _mm_extract_epi64::<0>(mask) as u64;
+
+        let compressed = _pext_u64(base, mask);
+
+        let store = indexes.as_mut_ptr().add(count).cast();
+        std::ptr::write_unaligned(store, compressed);
+
+        count += (mask.count_ones() / 8) as usize;
+        base += increment;
     }
 
     (indexes, count)
