@@ -197,12 +197,8 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
     let mut base: u64 = 0x0706050403020100;
 
     for i in (0..L1_SIZE).step_by(2 * simd::I16_LANES) {
-        let mask = *ft_out.as_ptr().add(i).cast();
-        let mask = _mm_packs_epi32(_mm256_castsi256_si128(mask), _mm256_extracti128_si256::<1>(mask));
-        let mask = _mm_packs_epi16(mask, _mm_setzero_si128());
-        let mask = _mm_cmpgt_epi8(mask, _mm_setzero_si128());
-        let mask = _mm_extract_epi64::<0>(mask) as u64;
-
+        let mask = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast()) as u64;
+        let mask = _pdep_u64(mask, 0x0101010101010100) - _pdep_u64(mask, 0x0101010101010101);
         let compressed = _pext_u64(base, mask);
 
         let store = indexes.as_mut_ptr().add(count).cast();
