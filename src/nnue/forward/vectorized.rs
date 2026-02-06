@@ -152,17 +152,15 @@ pub unsafe fn propagate_l3(l2_out: Aligned<[f32; L3_SIZE]>, bucket: usize) -> f3
     simd::horizontal_sum(output) + PARAMETERS.l3_biases[bucket]
 }
 
-#[cfg(all(not(target_feature = "neon"), not(all(target_feature = "avx512vl", target_feature = "avx512vbmi"))))]
+#[cfg(not(all(target_feature = "avx512vl", target_feature = "avx512vbmi")))]
 pub unsafe fn find_nnz(
     ft_out: &Aligned<[u8; L1_SIZE]>, nnz_table: &[SparseEntry],
-) -> (Aligned<[u16; L1_SIZE / 4]>, usize) {
-    use std::arch::x86_64::*;
-
+) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);
     let mut count = 0;
 
-    let increment = _mm_set1_epi16(8);
-    let mut base = _mm_setzero_si128();
+    let increment = 0x0808080808080808;
+    let mut base: u64 = 0;
 
     for i in (0..L1_SIZE).step_by(2 * simd::I16_LANES) {
         let mask = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast());
@@ -172,10 +170,10 @@ pub unsafe fn find_nnz(
             let entry = nnz_table.get_unchecked(slice as usize);
 
             let store = indexes.as_mut_ptr().add(count).cast();
-            _mm_storeu_si128(store, _mm_add_epi16(base, *entry.indexes.as_ptr().cast()));
+            std::ptr::write_unaligned(store, base + entry.indexes);
 
             count += entry.count;
-            base = _mm_add_epi16(base, increment);
+            base += increment;
         }
     }
 
@@ -214,37 +212,6 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
 
         count += mask.count_ones() as usize;
         base = _mm512_add_epi8(base, increment);
-    }
-
-    (indexes, count)
-}
-
-#[cfg(target_feature = "neon")]
-pub unsafe fn find_nnz(
-    ft_out: &Aligned<[u8; L1_SIZE]>, nnz_table: &[SparseEntry],
-) -> (Aligned<[u16; L1_SIZE / 4]>, usize) {
-    use std::arch::aarch64::*;
-
-    let mut indexes = Aligned::new([0; L1_SIZE / 4]);
-    let mut count = 0;
-
-    let increment = vdupq_n_s16(8);
-    let mut base = vdupq_n_s16(0);
-
-    for i in (0..L1_SIZE).step_by(32) {
-        let v0 = *ft_out.as_ptr().add(i).cast();
-        let v1 = *ft_out.as_ptr().add(i + 16).cast();
-
-        let mask = (simd::nnz_bitmask(v0) | (simd::nnz_bitmask(v1) << 4)) as usize;
-        let entry = nnz_table.get_unchecked(mask);
-
-        let store = indexes.as_mut_ptr().add(count).cast();
-        let indexed = vaddq_s16(base, vld1q_s16(entry.indexes.as_ptr().cast()));
-
-        vst1q_s16(store, indexed);
-
-        count += entry.count;
-        base = vaddq_s16(base, increment);
     }
 
     (indexes, count)

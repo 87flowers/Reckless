@@ -24,7 +24,7 @@ pub fn activate_ft(pst: &PstAccumulator, threat: &ThreatAccumulator, stm: Color)
     output
 }
 
-pub unsafe fn propagate_l1(ft_out: Aligned<[u8; L1_SIZE]>, nnz: &[u16], bucket: usize) -> Aligned<[f32; L2_SIZE]> {
+pub unsafe fn propagate_l1(ft_out: Aligned<[u8; L1_SIZE]>, nnz: &[u8], bucket: usize) -> Aligned<[f32; L2_SIZE]> {
     const CHUNKS: usize = 4;
 
     let mut pre_activations = [0i32; L2_SIZE];
@@ -83,7 +83,7 @@ pub fn propagate_l3(l2_out: Aligned<[f32; L3_SIZE]>, bucket: usize) -> f32 {
     output + PARAMETERS.l3_biases[bucket]
 }
 
-pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u16; L1_SIZE / 4]>, usize) {
+pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (Aligned<[u8; L1_SIZE / 4]>, usize) {
     let mut indexes = Aligned::new([0; L1_SIZE / 4]);
     let mut count = 0;
 
@@ -95,7 +95,7 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
         }
 
         if nonzero != 0 {
-            indexes[count] = i as u16;
+            indexes[count] = i;
             count += 1;
         }
     }

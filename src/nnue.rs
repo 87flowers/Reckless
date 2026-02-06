@@ -99,7 +99,7 @@ const OUTPUT_BUCKETS_LAYOUT: [usize; 33] = [
 #[repr(align(16))]
 #[derive(Clone, Copy)]
 struct SparseEntry {
-    indexes: [u16; 8],
+    indexes: u64,
     count: usize,
 }
 
@@ -555,14 +555,14 @@ impl Network {
 
 impl Default for Network {
     fn default() -> Self {
-        let mut nnz_table = vec![SparseEntry { indexes: [0; 8], count: 0 }; 256];
+        let mut nnz_table = vec![SparseEntry { indexes: 0, count: 0 }; 256];
 
         for (byte, entry) in nnz_table.iter_mut().enumerate() {
             let mut count = 0;
 
             for bit in 0..8 {
                 if (byte & (1 << bit)) != 0 {
-                    entry.indexes[count] = bit as u16;
+                    entry.indexes |= (bit as u64) << (count * 8);
                     count += 1;
                 }
             }
