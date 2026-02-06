@@ -221,9 +221,9 @@ pub fn start(td: &mut ThreadData, report: Report) {
                 break;
             }
 
-            score < singular_beta
+            (singular_beta - score).min(0)
         } else {
-            false
+            0
         };
 
         let multiplier = || {
@@ -237,7 +237,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
 
             let best_move_stability = 1.0 + best_move_changes as f32 / 4.0;
 
-            let singular_root = if singular_root { 0.7 } else { 1.0 };
+            let singular_root = (1.0 - 0.005 * singular_root as f32).max(0.4);
 
             nodes_factor * pv_stability * eval_stability * score_trend * best_move_stability * singular_root
         };
