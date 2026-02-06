@@ -237,7 +237,7 @@ pub fn start(td: &mut ThreadData, report: Report) {
 
             let best_move_stability = 1.0 + best_move_changes as f32 / 4.0;
 
-            let singular_root = (1.0 - 0.005 * singular_root as f32).max(0.4);
+            let singular_root = (1.0 - 0.005 * singular_root as f32).clamp(0.4, 0.8);
 
             nodes_factor * pv_stability * eval_stability * score_trend * best_move_stability * singular_root
         };
@@ -896,7 +896,7 @@ fn search<NODE: NodeType>(
             return Score::ZERO;
         }
 
-        if NODE::ROOT {
+        if NODE::ROOT && !excluded {
             let current_nodes = td.nodes();
             let root_move = td.root_moves.iter_mut().find(|v| v.mv == mv).unwrap();
 
