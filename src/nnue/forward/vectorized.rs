@@ -194,17 +194,16 @@ pub unsafe fn find_nnz(ft_out: &Aligned<[u8; L1_SIZE]>, _: &[SparseEntry]) -> (A
     let mut count = 0;
 
     let increment = 0x0808080808080808;
-    let mut base: u64 = 0x0706050403020100;
+    let mut base: u64 = 0;
 
     for i in (0..L1_SIZE).step_by(2 * simd::I16_LANES) {
-        let mask = simd::nnz_bitmask(*ft_out.as_ptr().add(i).cast()) as u64;
-        let mask = _pdep_u64(mask, 0x0101010101010100) - _pdep_u64(mask, 0x0101010101010101);
-        let compressed = _pext_u64(base, mask);
+        let mask = _mm256_movemask_epi8(_mm256_cmpgt_epi32(*ft_out.as_ptr().add(i).cast(), _mm256_setzero_si256()));
+        let offsets = _pdep_u64(_pext_u32(0x76543210, mask as u32) as u64, 0x0f0f0f0f0f0f0f0f);
 
         let store = indexes.as_mut_ptr().add(count).cast();
-        std::ptr::write_unaligned(store, compressed);
+        std::ptr::write_unaligned(store, base + offsets);
 
-        count += (mask.count_ones() / 8) as usize;
+        count += (mask.count_ones() / 4) as usize;
         base += increment;
     }
 
