@@ -541,6 +541,7 @@ impl Board {
         self.state.pawn_key = 0;
         self.state.minor_key = 0;
         self.state.non_pawn_keys = [0; Color::NUM];
+        self.state.partition_key = 0;
 
         for piece in 0..Piece::NUM {
             let piece = Piece::from_index(piece);
