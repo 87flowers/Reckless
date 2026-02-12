@@ -1376,6 +1376,7 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let stm = td.board.side_to_move();
     let bucket = td.board.fiftymove_clock_bucket();
     let corrhist = td.corrhist();
+    let partition = td.board.partition_keys();
 
     (corrhist.pawn.get(stm, td.board.pawn_key(), bucket)
         + corrhist.non_pawn[Color::White].get(stm, td.board.non_pawn_key(Color::White), bucket)
@@ -1389,7 +1390,11 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
             td.stack[ply - 4].contcorrhist,
             td.stack[ply - 1].piece,
             td.stack[ply - 1].mv.to(),
-        ))
+        )
+        + corrhist.partition[0].get(stm, partition[0], bucket)
+        + corrhist.partition[1].get(stm, partition[1], bucket)
+        + corrhist.partition[2].get(stm, partition[2], bucket)
+        + corrhist.partition[3].get(stm, partition[3], bucket))
         / 64
 }
 

@@ -1,10 +1,11 @@
-use crate::types::{Castling, Color, Piece, PieceType, Square, ZOBRIST};
+use crate::types::{Castling, Color, PARTITION_KEYS, Piece, PieceType, Square, ZOBRIST};
 
 #[derive(Clone, Copy, Default)]
 pub struct Keys {
     pub full: u64,
     pub pawn: u64,
     pub non_pawn: [u64; Color::NUM],
+    pub partition: u64,
 }
 
 impl Keys {
@@ -24,6 +25,7 @@ impl Keys {
         let piece_key = ZOBRIST.pieces[piece][sq];
 
         self.full ^= piece_key;
+        self.partition ^= PARTITION_KEYS[piece][sq];
 
         match piece.piece_type() {
             PieceType::Pawn => self.pawn ^= piece_key,

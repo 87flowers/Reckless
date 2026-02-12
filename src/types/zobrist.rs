@@ -28,3 +28,27 @@ pub const ZOBRIST: Zobrist = {
     }
     unsafe { std::mem::transmute(zobrist) }
 };
+
+pub const PARTITION_KEYS: [[u64; 64]; 12] = {
+    const SEED: u64 = 0xAB65_2F2D_0547_FD6Au64;
+    const INCREMENT: u64 = 0x9E37_79B9_7F4A_7C15;
+
+    let mut partition_keys = [0; 768];
+    let mut state = SEED;
+
+    let mut i = 0;
+    while i < partition_keys.len() {
+        state = state.wrapping_add(INCREMENT);
+        let mut z = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        z = z ^ (z >> 31);
+
+        let hash = z & 0xFFFF;
+        let shift = (z >> 16) % 4;
+        partition_keys[i] = hash << (shift * 16);
+
+        i += 1;
+    }
+    unsafe { std::mem::transmute(partition_keys) }
+};

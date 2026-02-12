@@ -113,6 +113,11 @@ impl Board {
         self.state.keys.non_pawn(color)
     }
 
+    pub const fn partition_keys(&self) -> [u64; 4] {
+        let key = self.state.keys.partition;
+        [key & 0xFFFF, (key >> 16) & 0xFFFF, (key >> 32) & 0xFFFF, (key >> 48) & 0xFFFF]
+    }
+
     pub const fn pinned(&self, color: Color) -> Bitboard {
         self.state.pinned[color as usize]
     }
