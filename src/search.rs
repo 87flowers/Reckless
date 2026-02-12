@@ -978,6 +978,9 @@ fn search<NODE: NodeType>(
         let cont_bonus = (108 * depth).min(977) - 67 - 52 * cut_node as i32;
         let cont_malus = (352 * depth).min(868) - 47 - 19 * quiet_moves.len() as i32;
 
+        let part_bonus = (150 * depth).min(900) - 75;
+        let part_malus = (300 * depth).min(900) - 50;
+
         if best_move.is_noisy() {
             td.noisy_history.update(
                 td.board.threats(),
@@ -989,10 +992,12 @@ fn search<NODE: NodeType>(
         } else {
             td.quiet_history.update(td.board.threats(), td.board.side_to_move(), best_move, quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
+            update_partition_histories(td, best_move, part_bonus);
 
             for &mv in quiet_moves.iter() {
                 td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
+                update_partition_histories(td, mv, -part_malus);
             }
         }
 
@@ -1265,7 +1270,6 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let stm = td.board.side_to_move();
     let corrhist = td.corrhist();
-    let partition = td.board.partition_keys();
 
     (1033 * corrhist.pawn.get(stm, td.board.pawn_key())
         + 959 * corrhist.minor.get(stm, td.board.minor_key())
@@ -1282,11 +1286,7 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
                 td.stack[ply - 4].contcorrhist,
                 td.stack[ply - 1].piece,
                 td.stack[ply - 1].mv.to(),
-            )
-        + 256 * corrhist.partition[0].get(stm, partition[0])
-        + 256 * corrhist.partition[1].get(stm, partition[1])
-        + 256 * corrhist.partition[2].get(stm, partition[2])
-        + 256 * corrhist.partition[3].get(stm, partition[3]))
+            ))
         / 1024
         / 77
 }
@@ -1327,6 +1327,15 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
         if entry.mv.is_some() {
             td.continuation_history.update(entry.conthist, piece, sq, bonus);
         }
+    }
+}
+
+fn update_partition_histories(td: &mut ThreadData, mv: Move, bonus: i32) {
+    let keys = td.board.partition_keys();
+    let threats = td.board.threats();
+    let piece = td.board.moved_piece(mv);
+    for i in 0..4 {
+        td.partition_history[i].update(threats, keys[i], piece, mv, bonus);
     }
 }
 

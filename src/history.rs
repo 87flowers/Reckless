@@ -217,6 +217,33 @@ impl Default for ContinuationHistory {
     }
 }
 
+pub struct PartitionHistory {
+    entries: Box<[PieceToHistory<QuietHistoryEntry>; Self::SIZE]>,
+}
+
+impl PartitionHistory {
+    const SIZE: usize = 65536;
+    const MASK: usize = Self::SIZE - 1;
+
+    pub fn get(&self, threats: Bitboard, key: u64, piece: Piece, mv: Move) -> i32 {
+        let entry = &self.entries[key as usize & Self::MASK][piece][mv.to()];
+        (entry.factorizer + entry.bucket(threats, mv)) as i32
+    }
+
+    pub fn update(&mut self, threats: Bitboard, key: u64, piece: Piece, mv: Move, bonus: i32) {
+        let entry = &mut self.entries[key as usize & Self::MASK][piece][mv.to()];
+
+        entry.update_factorizer(bonus);
+        entry.update_bucket(threats, mv, bonus);
+    }
+}
+
+impl Default for PartitionHistory {
+    fn default() -> Self {
+        Self { entries: zeroed_box() }
+    }
+}
+
 fn zeroed_box<T>() -> Box<T> {
     unsafe {
         let layout = std::alloc::Layout::new::<T>();

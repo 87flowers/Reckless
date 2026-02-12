@@ -181,6 +181,7 @@ impl MovePicker {
     fn score_quiet(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.threats();
         let side = td.board.side_to_move();
+        let partitions = td.board.partition_keys();
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
@@ -190,11 +191,17 @@ impl MovePicker {
                 continue;
             }
 
+            let piece = td.board.moved_piece(mv);
+
             entry.score = (994 * td.quiet_history.get(threats, side, mv)
                 + 1049 * td.conthist(ply, 1, mv)
                 + 990 * td.conthist(ply, 2, mv)
                 + 969 * td.conthist(ply, 4, mv)
-                + 1088 * td.conthist(ply, 6, mv))
+                + 1088 * td.conthist(ply, 6, mv)
+                + 256 * td.partition_history[0].get(threats, partitions[0], piece, mv)
+                + 256 * td.partition_history[1].get(threats, partitions[1], piece, mv)
+                + 256 * td.partition_history[2].get(threats, partitions[2], piece, mv)
+                + 256 * td.partition_history[3].get(threats, partitions[3], piece, mv))
                 / 1024;
         }
     }
