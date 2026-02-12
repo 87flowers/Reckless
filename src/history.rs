@@ -217,6 +217,42 @@ impl Default for ContinuationHistory {
     }
 }
 
+pub struct SequenceHistory {
+    entries: Box<[[AtomicI16; Self::SIZE]; 2]>,
+}
+
+impl SequenceHistory {
+    const MAX_HISTORY: i32 = 16000;
+
+    const SIZE: usize = 65536;
+    const MASK: usize = Self::SIZE - 1;
+
+    fn index(sequence: [Move; 4]) -> usize {
+        let x = unsafe { std::mem::transmute::<[Move; 4], u64>(sequence) };
+        let x = x * 0x9fb21c651e98df25;
+        let x = x ^ (x >> 56);
+        let x = x * 0xff51afd7ed558ccd;
+        let x = x ^ (x >> 23);
+        x as usize & Self::MASK
+    }
+
+    pub fn get(&self, stm: Color, sequence: [Move; 4]) -> i32 {
+        self.entries[stm][Self::index(sequence)].load(Ordering::Relaxed) as i32
+    }
+
+    pub fn update(&self, stm: Color, sequence: [Move; 4], bonus: i32) {
+        let current = self.entries[stm][Self::index(sequence)].load(Ordering::Relaxed) as i32;
+        let new = current + bonus - bonus.abs() * current / Self::MAX_HISTORY;
+        self.entries[stm][Self::index(sequence)].store(new as i16, Ordering::Relaxed);
+    }
+}
+
+impl Default for SequenceHistory {
+    fn default() -> Self {
+        Self { entries: zeroed_box() }
+    }
+}
+
 fn zeroed_box<T>() -> Box<T> {
     unsafe {
         let layout = std::alloc::Layout::new::<T>();

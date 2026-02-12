@@ -978,6 +978,9 @@ fn search<NODE: NodeType>(
         let cont_bonus = (108 * depth).min(977) - 67 - 52 * cut_node as i32;
         let cont_malus = (352 * depth).min(868) - 47 - 19 * quiet_moves.len() as i32;
 
+        let seq_bonus = (150 * depth).min(1000) - 70;
+        let seq_malus = (150 * depth).min(1000) - 70;
+
         if best_move.is_noisy() {
             td.noisy_history.update(
                 td.board.threats(),
@@ -986,6 +989,7 @@ fn search<NODE: NodeType>(
                 td.board.piece_on(best_move.to()).piece_type(),
                 noisy_bonus,
             );
+            td.sequence_history.update(td.board.side_to_move(), td.sequence(ply, best_move), seq_bonus);
         } else {
             td.quiet_history.update(td.board.threats(), td.board.side_to_move(), best_move, quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
@@ -993,12 +997,14 @@ fn search<NODE: NodeType>(
             for &mv in quiet_moves.iter() {
                 td.quiet_history.update(td.board.threats(), td.board.side_to_move(), mv, -quiet_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
+                // td.sequence_history.update(td.board.side_to_move(), td.sequence(ply, mv), seq_malus);
             }
         }
 
         for &mv in noisy_moves.iter() {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.update(td.board.threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
+            td.sequence_history.update(td.board.side_to_move(), td.sequence(ply, mv), seq_malus);
         }
 
         if !NODE::ROOT && td.stack[ply - 1].mv.is_quiet() && td.stack[ply - 1].move_count < 2 {

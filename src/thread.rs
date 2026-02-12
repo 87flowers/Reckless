@@ -5,7 +5,10 @@ use std::sync::{
 
 use crate::{
     board::Board,
-    history::{ContinuationCorrectionHistory, ContinuationHistory, CorrectionHistory, NoisyHistory, QuietHistory},
+    history::{
+        ContinuationCorrectionHistory, ContinuationHistory, CorrectionHistory, NoisyHistory, QuietHistory,
+        SequenceHistory,
+    },
     nnue::Network,
     numa::{NumaReplicator, NumaValue},
     stack::Stack,
@@ -137,6 +140,7 @@ pub struct ThreadData {
     pub quiet_history: QuietHistory,
     pub continuation_history: ContinuationHistory,
     pub continuation_corrhist: ContinuationCorrectionHistory,
+    pub sequence_history: SequenceHistory,
     pub best_move_changes: usize,
     pub optimism: [i32; 2],
     pub stopped: bool,
@@ -170,6 +174,7 @@ impl ThreadData {
             quiet_history: QuietHistory::default(),
             continuation_history: ContinuationHistory::default(),
             continuation_corrhist: ContinuationCorrectionHistory::default(),
+            sequence_history: SequenceHistory::default(),
             best_move_changes: 0,
             optimism: [0; 2],
             stopped: false,
@@ -199,6 +204,10 @@ impl ThreadData {
 
     pub fn conthist(&self, ply: isize, index: isize, mv: Move) -> i32 {
         self.continuation_history.get(self.stack[ply - index].conthist, self.board.piece_on(mv.from()), mv.to())
+    }
+
+    pub fn sequence(&self, ply: isize, mv: Move) -> [Move; 4] {
+        [self.stack[ply - 3].mv, self.stack[ply - 2].mv, self.stack[ply - 1].mv, mv]
     }
 
     pub fn print_uci_info(&self, depth: i32) {
