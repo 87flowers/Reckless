@@ -979,7 +979,7 @@ fn search<NODE: NodeType>(
         let cont_malus = (352 * depth).min(868) - 47 - 19 * quiet_moves.len() as i32;
 
         let seq_bonus = (150 * depth).min(1000) - 70;
-        let seq_malus = (150 * depth).min(1000) - 70;
+        let seq_malus = (300 * depth).min(1000) - 70;
 
         if best_move.is_noisy() {
             td.noisy_history.update(

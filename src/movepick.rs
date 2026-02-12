@@ -197,7 +197,7 @@ impl MovePicker {
                 + 990 * td.conthist(ply, 2, mv)
                 + 969 * td.conthist(ply, 4, mv)
                 + 1088 * td.conthist(ply, 6, mv)
-                + 500 * seq_hist)
+                + 1024 * seq_hist)
                 / 1024;
         }
     }
