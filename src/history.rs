@@ -228,10 +228,9 @@ impl SequenceHistory {
     const MASK: usize = Self::SIZE - 1;
 
     fn index(sequence: [Move; 4]) -> usize {
-        let x = unsafe { std::mem::transmute::<[Move; 4], u64>(sequence) };
-        let x = x * 0x9fb21c651e98df25;
-        let x = x ^ (x >> 56);
-        let x = x * 0xff51afd7ed558ccd;
+        let x = (sequence[0].encoded() + sequence[2].encoded()) as u32;
+        let x = x | ((sequence[1].encoded() + sequence[3].encoded()) as u32) << 16;
+        let x = x * 0xf51afd7e;
         let x = x ^ (x >> 23);
         x as usize & Self::MASK
     }
