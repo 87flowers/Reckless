@@ -3,7 +3,9 @@ use crate::{
         attacks, between, bishop_attacks, cuckoo, cuckoo_a, cuckoo_b, h1, h2, king_attacks, knight_attacks,
         pawn_attacks, pawn_attacks_setwise, queen_attacks, rook_attacks,
     },
-    types::{ArrayVec, Bitboard, Castling, CastlingKind, Color, Move, Piece, PieceType, Square, ZOBRIST},
+    types::{
+        ArrayVec, Bitboard, Castling, CastlingKind, Color, Move, PARTITION_KEYS, Piece, PieceType, Square, ZOBRIST,
+    },
 };
 
 #[cfg(test)]
@@ -24,6 +26,7 @@ struct InternalState {
     pawn_key: u64,
     minor_key: u64,
     non_pawn_keys: [u64; Color::NUM],
+    partition_key: u64,
     en_passant: Square,
     castling: Castling,
     halfmove_clock: u8,
@@ -87,6 +90,11 @@ impl Board {
 
     pub const fn non_pawn_key(&self, color: Color) -> u64 {
         self.state.non_pawn_keys[color as usize]
+    }
+
+    pub const fn partition_keys(&self) -> [u64; 4] {
+        let key = self.state.partition_key;
+        [key & 0xFFFF, (key >> 16) & 0xFFFF, (key >> 32) & 0xFFFF, (key >> 48) & 0xFFFF]
     }
 
     pub const fn pinned(&self, color: Color) -> Bitboard {
@@ -225,6 +233,8 @@ impl Board {
                 self.state.minor_key ^= key;
             }
         }
+
+        self.state.partition_key ^= PARTITION_KEYS[piece][square];
     }
 
     /// Checks if the position is a known draw by the fifty-move rule or repetition.

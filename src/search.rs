@@ -1265,6 +1265,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let stm = td.board.side_to_move();
     let corrhist = td.corrhist();
+    let partition = td.board.partition_keys();
 
     (1033 * corrhist.pawn.get(stm, td.board.pawn_key())
         + 959 * corrhist.minor.get(stm, td.board.minor_key())
@@ -1281,7 +1282,11 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
                 td.stack[ply - 4].contcorrhist,
                 td.stack[ply - 1].piece,
                 td.stack[ply - 1].mv.to(),
-            ))
+            )
+        + 256 * corrhist.partition[0].get(stm, partition[0])
+        + 256 * corrhist.partition[1].get(stm, partition[1])
+        + 256 * corrhist.partition[2].get(stm, partition[2])
+        + 256 * corrhist.partition[3].get(stm, partition[3]))
         / 1024
         / 77
 }

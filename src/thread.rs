@@ -91,6 +91,7 @@ pub struct SharedCorrectionHistory {
     pub pawn: CorrectionHistory,
     pub minor: CorrectionHistory,
     pub non_pawn: [CorrectionHistory; 2],
+    pub partition: [CorrectionHistory; 4],
 }
 
 unsafe impl NumaValue for SharedCorrectionHistory {}
