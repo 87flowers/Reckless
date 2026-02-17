@@ -642,10 +642,24 @@ fn search<NODE: NodeType>(
         }
 
         if score < singular_beta {
-            let double_margin =
-                200 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128;
-            let triple_margin =
-                288 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128 + 32;
+            let history = if tt_move.is_quiet() {
+                td.quiet_history.get(td.board.threats(), td.board.side_to_move(), tt_move)
+                    + td.conthist(ply, 1, tt_move)
+                    + td.conthist(ply, 2, tt_move)
+            } else {
+                let captured = td.board.piece_on(tt_move.to()).piece_type();
+                td.noisy_history.get(td.board.threats(), td.board.moved_piece(tt_move), tt_move.to(), captured)
+            };
+
+            let double_margin = 200 * NODE::PV as i32
+                - 16 * tt_move.is_quiet() as i32
+                - history / 1024
+                - 16 * correction_value.abs() / 128;
+            let triple_margin = 288 * NODE::PV as i32
+                - 16 * tt_move.is_quiet() as i32
+                - history / 1024
+                - 16 * correction_value.abs() / 128
+                + 32;
 
             extension = 1;
             extension += (score < singular_beta - double_margin) as i32;
