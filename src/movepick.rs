@@ -1,7 +1,7 @@
 use crate::{
     search::NodeType,
     thread::ThreadData,
-    types::{ArrayVec, MAX_MOVES, Move, MoveList, PieceType},
+    types::{ArrayVec, MAX_MOVES, Move, MoveList, PieceType, Square},
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
@@ -73,7 +73,7 @@ impl MovePicker {
         if self.stage == Stage::GenerateNoisy {
             self.stage = Stage::GoodNoisy;
             td.board.append_noisy_moves(&mut self.list);
-            self.score_noisy(td);
+            self.score_noisy(td, ply);
         }
 
         if self.stage == Stage::GoodNoisy {
@@ -91,7 +91,7 @@ impl MovePicker {
                 }
 
                 if NODE::ROOT {
-                    self.score_noisy(td);
+                    self.score_noisy(td, ply);
                 }
 
                 return Some(entry.mv);
@@ -159,8 +159,9 @@ impl MovePicker {
         best_index
     }
 
-    fn score_noisy(&mut self, td: &ThreadData) {
+    fn score_noisy(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.threats();
+        let last_moved_square = if ply > 0 { td.stack[ply].mv.to() } else { Square::None };
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
@@ -172,9 +173,11 @@ impl MovePicker {
 
             let captured =
                 if entry.mv.is_en_passant() { PieceType::Pawn } else { td.board.piece_on(mv.to()).piece_type() };
+            let recapture = entry.mv.to() == last_moved_square;
 
-            entry.score =
-                16 * captured.value() + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured);
+            entry.score = 16 * captured.value()
+                + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
+                + 1024 * recapture as i32;
         }
     }
 
