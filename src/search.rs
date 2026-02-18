@@ -689,6 +689,7 @@ fn search<NODE: NodeType>(
         move_count += 1;
         current_search_count = 0;
         td.stack[ply].move_count = move_count;
+        td.stack[ply + 1].quiet_run = if mv.is_quiet() { td.stack[ply].quiet_run + 1 } else { 0 };
 
         let is_quiet = mv.is_quiet();
 
@@ -765,6 +766,7 @@ fn search<NODE: NodeType>(
             reduction -= 65 * move_count;
             reduction -= 3183 * correction_value.abs() / 1024;
             reduction += 1300 * alpha_raises;
+            reduction += (120 * td.stack[ply + 1].quiet_run).max(700);
 
             if is_quiet {
                 reduction += 1972;
