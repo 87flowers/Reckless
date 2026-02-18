@@ -161,7 +161,7 @@ impl MovePicker {
 
     fn score_noisy(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.threats();
-        let last_moved_square = if ply > 0 { td.stack[ply].mv.to() } else { Square::None };
+        let last_moved_square = if ply > 0 { td.stack[ply - 1].mv.to() } else { Square::None };
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
