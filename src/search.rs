@@ -499,7 +499,7 @@ fn search<NODE: NodeType>(
         && !in_check
         && estimated_score < alpha - 299 - 252 * depth * depth
         && alpha < 2048
-        && td.stack[ply + 1].cutoff_count <= depth * 4
+        && td.stack[ply + 1].cutoff_count <= depth * 2
     {
         return qsearch::<NonPV>(td, alpha, beta, ply);
     }
