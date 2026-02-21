@@ -77,9 +77,10 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
     let mut average = vec![td.previous_best_score; td.multi_pv];
     let mut last_best_rootmove = RootMove::default();
+    let mut last_best_pv = [Move::NULL; MAX_PLY + 1];
 
     let mut eval_stability = 0;
-    let mut pv_stability = 0;
+    let mut pv_root_stability = 0;
     let mut best_move_changes = 0;
     let mut soft_stop_voted = false;
 
@@ -185,10 +186,15 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
         }
 
         if last_best_rootmove.mv == td.root_moves[0].mv {
-            pv_stability += 1;
+            pv_root_stability += 1;
         } else {
-            pv_stability = 0;
+            pv_root_stability = 0;
         }
+
+        let pv_line_stability = {
+            let line = td.root_moves[0].pv.line();
+            last_best_pv.iter().zip(line).take_while(|(x, y)| x == y).count() as f32 / line.len() as f32
+        };
 
         best_move_changes += td.best_move_changes;
 
@@ -199,6 +205,9 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
             }
         } else {
             last_best_rootmove = td.root_moves[0].clone();
+
+            let line = td.root_moves[0].pv.line();
+            last_best_pv[..line.len()].copy_from_slice(line);
         }
 
         if td.stopped {
@@ -208,7 +217,9 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
         let multiplier = || {
             let nodes_factor = (2.7168 - 2.2669 * (td.root_moves[0].nodes as f32 / td.nodes() as f32)).max(0.5630_f32);
 
-            let pv_stability = (1.25 - 0.05 * pv_stability as f32).max(0.85);
+            let pv_root_stability = (1.25 - 0.05 * pv_root_stability as f32).max(0.85);
+
+            let pv_line_stability = 1.03 - 0.05 * pv_line_stability;
 
             let eval_stability = (1.2 - 0.04 * eval_stability as f32).max(0.88);
 
@@ -216,7 +227,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
             let best_move_stability = 1.0 + best_move_changes as f32 / 4.0;
 
-            nodes_factor * pv_stability * eval_stability * score_trend * best_move_stability
+            nodes_factor * pv_root_stability * pv_line_stability * eval_stability * score_trend * best_move_stability
         };
 
         if td.time_manager.soft_limit(td, multiplier) {
