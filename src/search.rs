@@ -193,7 +193,11 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
         let pv_line_stability = {
             let line = td.root_moves[0].pv.line();
-            last_best_pv.iter().zip(line).take_while(|(x, y)| x == y).count() as f32 / line.len() as f32
+            if line.len() > 2 {
+                last_best_pv.iter().zip(line).take_while(|(x, y)| x == y).count() as f32 / (line.len() - 1) as f32
+            } else {
+                1.0
+            }
         };
 
         best_move_changes += td.best_move_changes;
