@@ -641,10 +641,15 @@ fn search<NODE: NodeType>(
                 200 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128;
             let triple_margin =
                 288 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128 + 32;
+            let quad_margin =
+                330 * NODE::PV as i32 - 16 * tt_move.is_quiet() as i32 - 16 * correction_value.abs() / 128
+                    + 225
+                    + 100 * tt_pv as i32;
 
             extension = 1;
             extension += (score < singular_beta - double_margin) as i32;
             extension += (score < singular_beta - triple_margin) as i32;
+            extension += (score < singular_beta - quad_margin) as i32;
         }
         // Multi-Cut
         else if score >= beta && !is_decisive(score) {
