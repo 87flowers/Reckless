@@ -1129,6 +1129,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
         if is_valid(tt_score)
             && (!NODE::PV || !is_decisive(tt_score))
+            && (!in_check || entry.depth >= 2)
             && match tt_bound {
                 Bound::Upper => tt_score <= alpha,
                 Bound::Lower => tt_score >= beta,
