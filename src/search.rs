@@ -814,6 +814,7 @@ fn search<NODE: NodeType>(
             }
 
             if td.board.halfmove_clock() > 75
+                && alpha > 50
                 && !mv.is_capture()
                 && td.board.piece_on(mv.to()).piece_type() != PieceType::Pawn
             {
