@@ -81,6 +81,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
     let mut eval_stability = 0;
     let mut pv_root_stability = 0;
+    let mut pv_line_stability = 0.0;
     let mut best_move_changes = 0;
     let mut soft_stop_voted = false;
 
@@ -179,6 +180,8 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
             td.print_uci_info(depth);
         }
 
+        let line = td.root_moves[0].pv.line();
+
         if (td.root_moves[0].score - average[td.pv_index]).abs() < 12 {
             eval_stability += 1;
         } else {
@@ -191,14 +194,10 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
             pv_root_stability = 0;
         }
 
-        let pv_line_stability = {
-            let line = td.root_moves[0].pv.line();
-            if line.len() > 2 {
-                last_best_pv.iter().zip(line).take_while(|(x, y)| x == y).count() as f32 / (line.len() - 1) as f32
-            } else {
-                1.0
-            }
-        };
+        if last_best_rootmove.mv == td.root_moves[0].mv && line.len() > 1 {
+            pv_line_stability +=
+                last_best_pv.iter().zip(line).take_while(|(x, y)| x == y).count() as f32 / line.len() as f32
+        }
 
         best_move_changes += td.best_move_changes;
 
@@ -209,8 +208,6 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
             }
         } else {
             last_best_rootmove = td.root_moves[0].clone();
-
-            let line = td.root_moves[0].pv.line();
             last_best_pv[..line.len()].copy_from_slice(line);
         }
 
@@ -223,7 +220,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
             let pv_root_stability = (1.25 - 0.05 * pv_root_stability as f32).max(0.85);
 
-            let pv_line_stability = 1.03 - 0.05 * pv_line_stability;
+            let pv_line_stability = (1.1 - 0.02 * pv_line_stability as f32).max(0.95);
 
             let eval_stability = (1.2 - 0.04 * eval_stability as f32).max(0.88);
 
