@@ -813,6 +813,13 @@ fn search<NODE: NodeType>(
                 reduction += 128;
             }
 
+            if td.board.halfmove_clock() > 75
+                && !mv.is_capture()
+                && td.board.piece_on(mv.to()).piece_type() != PieceType::Pawn
+            {
+                reduction += 384;
+            }
+
             let reduced_depth = (new_depth - reduction / 1024).clamp(1, new_depth + 1) + 2 * NODE::PV as i32;
 
             td.stack[ply].reduction = reduction;
