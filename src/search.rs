@@ -813,6 +813,10 @@ fn search<NODE: NodeType>(
                 reduction += 128;
             }
 
+            if extension > 0 && tt_move.is_quiet() {
+                reduction -= 256;
+            }
+
             let lmr_extension = reduction < -3072 && move_count <= 3;
 
             let reduced_depth =
