@@ -824,7 +824,7 @@ fn search<NODE: NodeType>(
             }
 
             let lmr_extension = if NODE::PV {
-                2
+                3
             } else if reduction < -3072 && move_count <= 3 {
                 1
             } else {
