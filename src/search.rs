@@ -504,7 +504,7 @@ fn search<NODE: NodeType>(
     }
 
     // Reverse Futility Pruning (RFP)
-    if (!tt_pv || (!NODE::PV && is_valid(tt_score) && !is_decisive(tt_score) && tt_score >= beta + 420))
+    if (!tt_pv || (!NODE::PV && is_valid(tt_score) && !is_decisive(tt_score) && tt_score >= beta))
         && !excluded
         && is_valid(estimated_score)
         && estimated_score >= beta
