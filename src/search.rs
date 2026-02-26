@@ -593,12 +593,16 @@ fn search<NODE: NodeType>(
                 continue;
             }
 
+            let captured = td.board.piece_on(mv.to()).piece_type();
+            let history = td.noisy_history.get(td.board.threats(), td.board.moved_piece(mv), mv.to(), captured);
+
             make_move(td, ply, mv);
 
             let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
 
             let base_depth = (depth - 4).max(0);
-            let mut probcut_depth = (base_depth - (score - probcut_beta) / 295).clamp(0, base_depth);
+            let mut probcut_depth =
+                (base_depth - (score - probcut_beta) / 295 + history / 4096).clamp(0, base_depth + 1);
 
             if score >= probcut_beta && probcut_depth > 0 {
                 let adjusted_beta = (probcut_beta + 282 * (base_depth - probcut_depth)).min(Score::INFINITE);
