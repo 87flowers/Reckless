@@ -502,7 +502,7 @@ fn search<NODE: NodeType>(
     // Razoring
     if !NODE::PV
         && !in_check
-        && estimated_score < alpha - 299 - 252 * depth * depth - 100 * no_opponent_threats as i32
+        && estimated_score < alpha - 299 - 252 * depth * depth + 100 * no_opponent_threats as i32
         && alpha < 2048
     {
         return qsearch::<NonPV>(td, alpha, beta, ply);
