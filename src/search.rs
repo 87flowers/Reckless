@@ -785,7 +785,7 @@ fn search<NODE: NodeType>(
             }
 
             if NODE::PV {
-                reduction -= 411 + 421 * (beta - alpha) / td.root_delta;
+                reduction -= 2700 + 421 * (beta - alpha) / td.root_delta;
             }
 
             if tt_pv {
