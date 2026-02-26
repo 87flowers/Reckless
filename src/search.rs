@@ -497,6 +497,7 @@ fn search<NODE: NodeType>(
     }
 
     let improving = improvement > 0;
+    let no_opponent_threats = (td.board.threats() & td.board.us()).is_empty() && !td.board.in_check();
 
     // Razoring
     if !NODE::PV && !in_check && estimated_score < alpha - 299 - 252 * depth * depth && alpha < 2048 {
@@ -512,7 +513,7 @@ fn search<NODE: NodeType>(
             >= beta + 1125 * depth * depth / 128 + 26 * depth - (77 * improving as i32)
                 + 519 * correction_value.abs() / 1024
                 + 32 * (depth == 1) as i32
-                - 64 * ((td.board.threats() & td.board.us()).is_empty() && !td.board.in_check()) as i32
+                - 64 * no_opponent_threats as i32
         && !is_loss(beta)
         && !is_win(estimated_score)
     {
@@ -575,7 +576,7 @@ fn search<NODE: NodeType>(
     }
 
     // ProbCut
-    let mut probcut_beta = beta + 269 - 72 * improving as i32;
+    let mut probcut_beta = beta + 269 - 72 * improving as i32 - 64 * no_opponent_threats as i32;
 
     if cut_node
         && !is_decisive(beta)
