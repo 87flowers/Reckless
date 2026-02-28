@@ -713,8 +713,9 @@ fn search<NODE: NodeType>(
                     let adjust = improvement.clamp(-100, 218);
                     let factor0 = 2515 + 130 * adjust / 16;
                     let factor1 = 946 + 79 * adjust / 16;
+                    let history_tweak = is_quiet as i32 * (history * 64).clamp(-4096, 4096);
 
-                    (factor0 + factor1 * depth * depth) / 1024
+                    (factor0 + factor1 * depth * depth + history_tweak) / 1024
                 };
 
             // Futility Pruning (FP)
