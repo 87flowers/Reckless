@@ -477,7 +477,7 @@ fn search<NODE: NodeType>(
         && tt_depth >= depth;
 
     if !NODE::ROOT
-        && (!tt_pv || bad_tt_entry)
+        && !tt_pv
         && !in_check
         && !excluded
         && depth >= 2
@@ -492,7 +492,8 @@ fn search<NODE: NodeType>(
         && tt_depth >= depth - 3
         && tt_bound != Bound::Upper
         && is_valid(tt_score)
-        && !is_decisive(tt_score);
+        && !is_decisive(tt_score)
+        && !bad_tt_entry;
 
     let mut improvement = 0;
 
