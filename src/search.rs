@@ -655,6 +655,14 @@ fn search<NODE: NodeType>(
             extension = 1;
             extension += (score < singular_beta - double_margin) as i32;
             extension += (score < singular_beta - triple_margin) as i32;
+
+            if extension > 1
+                && ply > 4
+                && tt_move.from() == td.stack[ply - 2].mv.to()
+                && tt_move.to() == td.stack[ply - 2].mv.from()
+            {
+                extension -= 1;
+            }
         }
         // Multi-Cut
         else if score >= beta && !is_decisive(score) {
