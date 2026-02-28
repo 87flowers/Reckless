@@ -470,8 +470,14 @@ fn search<NODE: NodeType>(
         depth += 1;
     }
 
+    let bad_tt_entry = tt_move.is_some()
+        && (tt_bound == Bound::Upper || tt_bound == Bound::Exact)
+        && is_valid(tt_score)
+        && tt_score < alpha + 128 + 64 * depth
+        && tt_depth >= depth;
+
     if !NODE::ROOT
-        && !tt_pv
+        && (!tt_pv || bad_tt_entry)
         && !in_check
         && !excluded
         && depth >= 2
