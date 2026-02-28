@@ -496,7 +496,7 @@ fn search<NODE: NodeType>(
         improvement = eval - td.stack[ply - 4].eval;
     }
 
-    let improving = improvement > 0;
+    let improving = improvement > 0 || correction_value >= 4194304;
 
     // Razoring
     if !NODE::PV && !in_check && estimated_score < alpha - 299 - 252 * depth * depth && alpha < 2048 {
