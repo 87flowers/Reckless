@@ -1034,6 +1034,7 @@ fn search<NODE: NodeType>(
             factor += 113 * (pcm_move == td.stack[ply - 1].tt_move) as i32;
             factor += 156 * (!in_check && best_score <= eval.min(raw_eval) - 96) as i32;
             factor += 317 * (is_valid(td.stack[ply - 1].eval) && best_score <= -td.stack[ply - 1].eval - 120) as i32;
+            factor += 64 * td.stack[ply - 1].tt_move.is_capture() as i32;
 
             let scaled_bonus = factor * (153 * depth - 34).min(2474) / 128;
 
