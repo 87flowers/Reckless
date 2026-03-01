@@ -799,6 +799,14 @@ fn search<NODE: NodeType>(
                 reduction += 2116 * tt_move.is_null() as i32;
             }
 
+            if !tt_pv
+                && ply > 4
+                && tt_move.from() == td.stack[ply - 2].mv.to()
+                && tt_move.to() == td.stack[ply - 2].mv.from()
+            {
+                reduction += 1024;
+            }
+
             if !improving {
                 reduction += (438 - 279 * improvement / 128).min(1288);
             }
