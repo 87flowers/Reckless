@@ -796,7 +796,8 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1762;
-                reduction += 2116 * tt_move.is_null() as i32;
+                reduction += 1604 * tt_move.is_null() as i32;
+                reduction += 512 * (tt_move.is_null() && td.stack[ply - 1].reduction <= 3072) as i32;
             }
 
             if !improving {
@@ -863,7 +864,8 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1450;
-                reduction += 2200 * tt_move.is_null() as i32;
+                reduction += 1688 * tt_move.is_null() as i32;
+                reduction += 512 * (tt_move.is_null() && td.stack[ply - 1].reduction <= 3072) as i32;
             }
 
             if !improving {
