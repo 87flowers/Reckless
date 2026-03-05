@@ -512,16 +512,34 @@ impl Board {
             pawn_attacks_setwise(self.their(PieceType::Pawn), !self.side_to_move);
 
         self.state.piece_threats[PieceType::Knight] =
-            self.their(PieceType::Knight).fold(Bitboard(0), |threats, sq| threats | knight_attacks(sq));
+            self.their(PieceType::Knight).fold(Bitboard(0), |acc, sq| acc | knight_attacks(sq));
 
-        self.state.piece_threats[PieceType::Bishop] =
-            self.their(PieceType::Bishop).fold(Bitboard(0), |threats, sq| threats | bishop_attacks(sq, occupancies));
+        #[cfg(not(target_feature = "gfni"))]
+        {
+            self.state.piece_threats[PieceType::Bishop] =
+                self.their(PieceType::Bishop).fold(Bitboard(0), |acc, sq| acc | bishop_attacks(sq, occupancies));
 
-        self.state.piece_threats[PieceType::Rook] =
-            self.their(PieceType::Rook).fold(Bitboard(0), |threats, sq| threats | rook_attacks(sq, occupancies));
+            self.state.piece_threats[PieceType::Rook] =
+                self.their(PieceType::Rook).fold(Bitboard(0), |acc, sq| acc | rook_attacks(sq, occupancies));
 
-        self.state.piece_threats[PieceType::Queen] =
-            self.their(PieceType::Queen).fold(Bitboard(0), |threats, sq| threats | queen_attacks(sq, occupancies));
+            self.state.piece_threats[PieceType::Queen] =
+                self.their(PieceType::Queen).fold(Bitboard(0), |acc, sq| acc | queen_attacks(sq, occupancies));
+        }
+
+        #[cfg(target_feature = "gfni")]
+        {
+            use crate::lookup::slider_attacks_setwise;
+            (
+                self.state.piece_threats[PieceType::Bishop],
+                self.state.piece_threats[PieceType::Rook],
+                self.state.piece_threats[PieceType::Queen],
+            ) = slider_attacks_setwise(
+                self.their(PieceType::Bishop),
+                self.their(PieceType::Rook),
+                self.their(PieceType::Queen),
+                occupancies,
+            );
+        }
 
         self.state.piece_threats[PieceType::King] = king_attacks(self.their(PieceType::King).lsb());
 
