@@ -44,10 +44,10 @@ impl QuietHistoryEntry {
     }
 
     pub fn decimate(&mut self) {
-        self.factorizer = (self.factorizer as i32 * 9 / 10) as i16;
+        self.factorizer = (self.factorizer as i32 * 3 / 4) as i16;
         for i in 0..2 {
             for j in 0..2 {
-                self.buckets[i][j] = (self.buckets[i][j] as i32 * 9 / 10) as i16;
+                self.buckets[i][j] = (self.buckets[i][j] as i32 * 3 / 4) as i16;
             }
         }
     }
