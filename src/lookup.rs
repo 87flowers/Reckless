@@ -174,7 +174,7 @@ pub fn queen_attacks(square: Square, occupancies: Bitboard) -> Bitboard {
     rook_attacks(square, occupancies) | bishop_attacks(square, occupancies)
 }
 
-#[cfg(target_feature = "avx512f")]
+#[cfg(target_feature = "gfni")]
 pub fn slider_attacks_setwise(
     bishops: Bitboard, rooks: Bitboard, queens: Bitboard, occupancies: Bitboard,
 ) -> (Bitboard, Bitboard, Bitboard) {
@@ -200,7 +200,7 @@ pub fn slider_attacks_setwise(
             (!Bitboard::rank(Rank::R1) & !Bitboard::file(File::A)).0 as i64,
         );
 
-        // Koggle-Stone algorithm
+        // Kogge-Stone algorithm
         let rb_gen = rb_attackers;
         let q_gen = q_attackers;
         let rb_prop = _mm512_and_si512(_mm512_set1_epi64(!occupancies.0 as i64), masks);
