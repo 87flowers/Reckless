@@ -578,6 +578,7 @@ fn search<NODE: NodeType>(
     let mut probcut_beta = beta + 269 - 72 * improving as i32;
 
     if cut_node
+        && !potential_singularity
         && !is_decisive(beta)
         && (!is_valid(tt_score) || tt_score >= probcut_beta && !is_decisive(tt_score))
         && !tt_move.is_quiet()
