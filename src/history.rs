@@ -42,6 +42,15 @@ impl QuietHistoryEntry {
         let entry = &mut self.buckets[from_threatened][to_threatened];
         apply_bonus::<{ Self::MAX_BUCKET }>(entry, bonus);
     }
+
+    pub fn decimate(&mut self) {
+        self.factorizer = (self.factorizer as i32 * 9 / 10) as i16;
+        for i in 0..2 {
+            for j in 0..2 {
+                self.buckets[i][j] = (self.buckets[i][j] as i32 * 9 / 10) as i16;
+            }
+        }
+    }
 }
 
 pub struct QuietHistory {
@@ -59,6 +68,16 @@ impl QuietHistory {
 
         entry.update_factorizer(bonus);
         entry.update_bucket(threats, mv, bonus);
+    }
+
+    pub fn decimate(&mut self) {
+        for color in 0..Color::NUM {
+            for from in 0..Square::NUM {
+                for to in 0..Square::NUM {
+                    self.entries[color][from][to].decimate();
+                }
+            }
+        }
     }
 }
 
