@@ -471,7 +471,7 @@ fn search<NODE: NodeType>(
     }
 
     if !NODE::ROOT
-        && !tt_pv
+        && !NODE::PV
         && !in_check
         && !excluded
         && depth >= 2
