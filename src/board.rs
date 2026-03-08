@@ -38,6 +38,7 @@ struct InternalState {
     pinners: [Bitboard; Color::NUM],
     checkers: Bitboard,
     checking_squares: [Bitboard; PieceType::NUM],
+    threaten_king_ring_squares: [Bitboard; PieceType::NUM],
 }
 
 #[derive(Clone)]
@@ -102,6 +103,10 @@ impl Board {
 
     pub const fn checking_squares(&self, pt: PieceType) -> Bitboard {
         self.state.checking_squares[pt as usize]
+    }
+
+    pub const fn threaten_king_ring_squares(&self, pt: PieceType) -> Bitboard {
+        self.state.threaten_king_ring_squares[pt as usize]
     }
 
     pub const fn checkers(&self) -> Bitboard {
@@ -583,13 +588,28 @@ impl Board {
             }
         }
 
+        let occ = self.occupancies();
+
         let their_king = self.king_square(!self.side_to_move);
         self.state.checking_squares[PieceType::Pawn] = pawn_attacks(their_king, !self.side_to_move);
         self.state.checking_squares[PieceType::Knight] = knight_attacks(their_king);
-        self.state.checking_squares[PieceType::Bishop] = bishop_attacks(their_king, self.occupancies());
-        self.state.checking_squares[PieceType::Rook] = rook_attacks(their_king, self.occupancies());
+        self.state.checking_squares[PieceType::Bishop] = bishop_attacks(their_king, occ);
+        self.state.checking_squares[PieceType::Rook] = rook_attacks(their_king, occ);
         self.state.checking_squares[PieceType::Queen] =
             self.checking_squares(PieceType::Bishop) | self.checking_squares(PieceType::Rook);
+
+        let their_king_ring = king_attacks(self.king_square(!self.side_to_move));
+        // TODO: Optimize setwise later
+        for sq in their_king_ring {
+            self.state.threaten_king_ring_squares[PieceType::Knight] |= knight_attacks(sq);
+            self.state.threaten_king_ring_squares[PieceType::Bishop] |= bishop_attacks(sq, occ);
+            self.state.threaten_king_ring_squares[PieceType::Rook] |= rook_attacks(sq, occ);
+        }
+        self.state.threaten_king_ring_squares[PieceType::Pawn] =
+            pawn_attacks_setwise(their_king_ring, !self.side_to_move);
+        self.state.threaten_king_ring_squares[PieceType::Queen] = self.state.threaten_king_ring_squares
+            [PieceType::Bishop]
+            | self.state.threaten_king_ring_squares[PieceType::Rook];
     }
 
     pub fn update_hash_keys(&mut self) {

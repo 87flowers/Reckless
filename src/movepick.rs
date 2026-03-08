@@ -233,6 +233,10 @@ impl MovePicker {
             else if pt == PieceType::Queen && minor_threats.contains(mv.to()) {
                 entry.score -= 10000;
             }
+            let threaten_king_ring_squares = td.board.threaten_king_ring_squares(td.board.moved_piece(mv).piece_type());
+            if !threaten_king_ring_squares.contains(mv.from()) && threaten_king_ring_squares.contains(mv.to()) {
+                entry.score += 5000;
+            }
         }
     }
 }
