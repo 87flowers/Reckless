@@ -1181,7 +1181,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     }
 
     // Stand Pat
-    if best_score >= beta {
+    if best_score >= beta + 32 * tt_move.is_quiet() as i32 {
         if !is_decisive(best_score) && !is_decisive(beta) {
             best_score = beta + (best_score - beta) / 3;
         }
