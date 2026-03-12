@@ -419,6 +419,9 @@ fn search<NODE: NodeType>(
         td.shared.tt.write(hash, TtDepth::SOME, raw_eval, Score::NONE, Bound::None, Move::NULL, ply, tt_pv, false);
     }
 
+    // Evaluation Jitter
+    eval += (td.nodes() & 2) as i32 - 1;
+
     // Prefer the TT entry to tighten the evaluation when its bound aligns with
     // the current alpha-beta window; otherwise, retain the unbounded evaluation
     let mut estimated_score = eval;
@@ -1163,11 +1166,13 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
         eval = Score::NONE;
         best_score = -Score::INFINITE;
     } else {
+        let jitter = (td.nodes() & 2) as i32 - 1;
+
         raw_eval = match &entry {
             Some(entry) if is_valid(entry.raw_eval) => entry.raw_eval,
             _ => td.nnue.evaluate(&td.board),
         };
-        eval = correct_eval(td, raw_eval, eval_correction(td, ply));
+        eval = correct_eval(td, raw_eval, eval_correction(td, ply)) + jitter;
         best_score = eval;
 
         if is_valid(tt_score)
