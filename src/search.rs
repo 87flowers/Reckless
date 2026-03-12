@@ -497,6 +497,7 @@ fn search<NODE: NodeType>(
     }
 
     let improving = improvement > 0;
+    let no_opponent_threats = (td.board.all_threats() & td.board.us()).is_empty() && !td.board.in_check();
 
     // Razoring
     if !NODE::PV
@@ -517,7 +518,7 @@ fn search<NODE: NodeType>(
             >= beta + 1125 * depth * depth / 128 + 26 * depth - (77 * improving as i32)
                 + 519 * correction_value.abs() / 1024
                 + 32 * (depth == 1) as i32
-                - 64 * ((td.board.all_threats() & td.board.us()).is_empty() && !td.board.in_check()) as i32
+                - 64 * no_opponent_threats as i32
         && !is_loss(beta)
         && !is_win(estimated_score)
     {
@@ -534,6 +535,7 @@ fn search<NODE: NodeType>(
         && eval
             >= beta - 9 * depth + 126 * tt_pv as i32 - 128 * improvement / 1024 + 286
                 - 20 * (td.stack[ply + 1].cutoff_count < 2) as i32
+                - 16 * no_opponent_threats as i32
         && ply as i32 >= td.nmp_min_ply
         && td.board.has_non_pawns()
         && !is_loss(beta)
