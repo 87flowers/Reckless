@@ -222,7 +222,7 @@ pub struct SequenceHistory {
 }
 
 impl SequenceHistory {
-    const ENTRY_COUNT: usize = 65536;
+    const ENTRY_COUNT: usize = 4194304;
     const MAX_HISTORY: i32 = 16384;
 
     pub fn get(&self, sequence_hash: u64, piece: Piece, to: Square) -> i32 {
