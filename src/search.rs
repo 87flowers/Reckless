@@ -1009,8 +1009,13 @@ fn search<NODE: NodeType>(
                 td.board.piece_on(best_move.to()).piece_type(),
                 noisy_bonus,
             );
-            if ply > 3 {
-                td.sequence_history.update(td.sequence(3), td.board.moved_piece(best_move), best_move.to(), seq_bonus);
+            if ply >= 2 {
+                td.sequence_history.update(
+                    td.board.sequence_key(2),
+                    td.board.moved_piece(best_move),
+                    best_move.to(),
+                    seq_bonus,
+                );
             }
         } else {
             td.quiet_history.update(td.board.all_threats(), td.board.side_to_move(), best_move, quiet_bonus);
@@ -1025,8 +1030,8 @@ fn search<NODE: NodeType>(
         for &mv in noisy_moves.iter() {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.update(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
-            if ply > 3 {
-                td.sequence_history.update(td.sequence(3), td.board.moved_piece(mv), mv.to(), -seq_malus);
+            if ply >= 2 {
+                td.sequence_history.update(td.board.sequence_key(2), td.board.moved_piece(mv), mv.to(), -seq_malus);
             }
         }
 

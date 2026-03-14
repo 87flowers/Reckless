@@ -206,8 +206,12 @@ impl ThreadData {
         self.continuation_history.get(self.stack[ply - index].conthist, self.board.piece_on(mv.from()), mv.to())
     }
 
-    pub fn sequence(&self, offset: usize) -> u64 {
-        self.board.sequence_key(offset)
+    pub fn seqhist(&self, ply: isize, offset: usize, mv: Move) -> i32 {
+        if ply >= offset as isize {
+            self.sequence_history.get(self.board.sequence_key(offset), self.board.moved_piece(mv), mv.to())
+        } else {
+            0
+        }
     }
 
     pub fn print_uci_info(&self, depth: i32) {
