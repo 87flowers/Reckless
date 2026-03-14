@@ -80,6 +80,10 @@ impl Board {
         self.state.key ^ ZOBRIST.halfmove_clock[(self.halfmove_clock().saturating_sub(8) as usize / 8).min(15)]
     }
 
+    pub fn sequence_key(&self, offset: usize) -> u64 {
+        self.state_stack[self.state_stack.len() - offset].key ^ self.state.key
+    }
+
     pub const fn pawn_key(&self) -> u64 {
         self.state.pawn_key
     }
