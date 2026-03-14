@@ -1201,6 +1201,8 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     let mut best_move = Move::NULL;
 
+    let mut noisy_moves = ArrayVec::<Move, 32>::new();
+
     let mut move_count = 0;
     let mut move_picker = MovePicker::new_qsearch();
 
@@ -1247,25 +1249,39 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
                 }
 
                 if score >= beta {
-                    let bonus = if best_move.is_noisy() { 106 } else { 172 };
-
-                    if best_move.is_noisy() {
-                        td.noisy_history.update(
-                            td.board.all_threats(),
-                            td.board.moved_piece(best_move),
-                            best_move.to(),
-                            td.board.piece_on(best_move.to()).piece_type(),
-                            bonus,
-                        );
-                    } else {
-                        td.quiet_history.update(td.board.all_threats(), td.board.side_to_move(), best_move, bonus);
-                    }
-
                     break;
                 }
 
                 alpha = score;
             }
+        }
+
+        if mv != best_move && move_count < 32 && mv.is_noisy() {
+            noisy_moves.push(mv);
+        }
+    }
+
+    if best_move.is_some() && best_score >= beta {
+        let noisy_bonus = 106;
+        let noisy_malus = 20;
+
+        let quiet_bonus = 172;
+
+        if best_move.is_noisy() {
+            td.noisy_history.update(
+                td.board.all_threats(),
+                td.board.moved_piece(best_move),
+                best_move.to(),
+                td.board.piece_on(best_move.to()).piece_type(),
+                noisy_bonus,
+            );
+        } else {
+            td.quiet_history.update(td.board.all_threats(), td.board.side_to_move(), best_move, quiet_bonus);
+        }
+
+        for &mv in noisy_moves.iter() {
+            let captured = td.board.piece_on(mv.to()).piece_type();
+            td.noisy_history.update(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
         }
     }
 
