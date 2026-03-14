@@ -1272,6 +1272,14 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
                             td.board.piece_on(best_move.to()).piece_type(),
                             bonus,
                         );
+                        if ply >= 2 {
+                            td.sequence_history.update(
+                                td.board.sequence_key(2),
+                                td.board.moved_piece(best_move),
+                                best_move.to(),
+                                bonus,
+                            );
+                        }
                     } else {
                         td.quiet_history.update(td.board.all_threats(), td.board.side_to_move(), best_move, bonus);
                     }
