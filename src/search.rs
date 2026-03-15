@@ -679,9 +679,11 @@ fn search<NODE: NodeType>(
 
     let mut best_move = Move::NULL;
     let mut bound = Bound::Upper;
+    let mut best_is_bad_noisy = false;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
+    let mut bad_noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
     let mut move_picker = MovePicker::new(tt_move);
@@ -951,6 +953,7 @@ fn search<NODE: NodeType>(
             if score > alpha {
                 bound = Bound::Exact;
                 best_move = mv;
+                best_is_bad_noisy = move_picker.stage() == Stage::BadNoisy;
 
                 if !NODE::ROOT && NODE::PV {
                     td.pv_table.update(ply as usize, mv);
@@ -970,10 +973,14 @@ fn search<NODE: NodeType>(
             }
         }
 
-        if mv != best_move && move_count < 32 {
-            if is_quiet {
+        if mv != best_move {
+            if !is_quiet && move_picker.stage() == Stage::BadNoisy {
+                if !bad_noisy_moves.is_full() {
+                    bad_noisy_moves.push(mv);
+                }
+            } else if is_quiet && move_count < 32 {
                 quiet_moves.push(mv);
-            } else {
+            } else if move_count < 32 {
                 noisy_moves.push(mv);
             }
         }
@@ -1005,6 +1012,15 @@ fn search<NODE: NodeType>(
                 td.board.piece_on(best_move.to()).piece_type(),
                 noisy_bonus,
             );
+            if best_is_bad_noisy {
+                td.bad_noisy_history.update(
+                    td.board.all_threats(),
+                    td.board.moved_piece(best_move),
+                    best_move.to(),
+                    td.board.piece_on(best_move.to()).piece_type(),
+                    noisy_bonus,
+                );
+            }
         } else {
             td.quiet_history.update(td.board.all_threats(), td.board.side_to_move(), best_move, quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
@@ -1018,6 +1034,17 @@ fn search<NODE: NodeType>(
         for &mv in noisy_moves.iter() {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.update(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured, -noisy_malus);
+        }
+
+        for &mv in bad_noisy_moves.iter() {
+            let captured = td.board.piece_on(mv.to()).piece_type();
+            td.bad_noisy_history.update(
+                td.board.all_threats(),
+                td.board.moved_piece(mv),
+                mv.to(),
+                captured,
+                -noisy_malus,
+            );
         }
 
         if !NODE::ROOT && td.stack[ply - 1].mv.is_quiet() && td.stack[ply - 1].move_count < 2 {

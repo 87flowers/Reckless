@@ -30,6 +30,10 @@ impl MoveList {
         self.inner.push(MoveEntry { mv: Move::new(from, to, kind), score: 0 });
     }
 
+    pub fn push_entry(&mut self, entry: &MoveEntry) {
+        self.inner.push(*entry);
+    }
+
     #[cfg(not(all(target_feature = "avx512vl", target_feature = "avx512vbmi")))]
     pub fn push_setwise(&mut self, from: Square, to_bb: Bitboard, kind: MoveKind) {
         for to in to_bb {
@@ -124,6 +128,20 @@ impl MoveList {
 
     pub fn remove(&mut self, index: usize) -> MoveEntry {
         self.inner.swap_remove(index)
+    }
+
+    pub fn find_best_score_index(&self) -> usize {
+        let mut best_index = 0;
+        let mut best_score = i32::MIN;
+
+        for (index, entry) in self.iter().enumerate() {
+            if entry.score >= best_score {
+                best_index = index;
+                best_score = entry.score;
+            }
+        }
+
+        best_index
     }
 }
 

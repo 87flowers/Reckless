@@ -22,6 +22,10 @@ impl<T: Copy, const N: usize> ArrayVec<T, N> {
         self.len == 0
     }
 
+    pub const fn is_full(&self) -> bool {
+        self.len >= N
+    }
+
     pub fn get(&self, index: usize) -> &T {
         debug_assert!(index < self.len);
 
