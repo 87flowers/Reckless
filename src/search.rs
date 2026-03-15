@@ -1263,7 +1263,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     if best_move.is_some() && best_score >= beta {
         let noisy_bonus = 106;
-        let noisy_malus = 20;
+        let noisy_malus = (30 - ply).max(1) as i32;
 
         let quiet_bonus = 172;
 
