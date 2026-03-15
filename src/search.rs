@@ -673,6 +673,8 @@ fn search<NODE: NodeType>(
             extension = -2;
         } else if cut_node {
             extension = -2;
+        } else if td.stack[ply + 1].tt_move.is_present() {
+            extension = -1;
         }
     } else if NODE::PV && tt_move.is_noisy() && tt_move.to() == td.board.recapture_square() {
         extension = 1;
