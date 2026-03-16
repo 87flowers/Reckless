@@ -2,7 +2,10 @@ use super::{Aligned, L1_SIZE, PARAMETERS, simd};
 use crate::{
     board::Board,
     lookup::attacks,
-    nnue::{INPUT_BUCKETS, INPUT_BUCKETS_LAYOUT, threats::threat_index},
+    nnue::{
+        INPUT_BUCKETS, INPUT_BUCKETS_LAYOUT,
+        threats::{ThreatFeature, threat_index},
+    },
     types::{ArrayVec, Bitboard, Color, Move, MoveKind, Piece, PieceType, Square},
 };
 
@@ -323,7 +326,7 @@ impl ThreatAccumulator {
     pub fn refresh(&mut self, board: &Board, pov: Color) {
         let king = board.king_square(pov);
 
-        let mut adds = ArrayVec::<usize, 8196>::new();
+        let mut adds = ArrayVec::<ThreatFeature, 8196>::new();
 
         for square in board.occupancies() {
             let piece = board.piece_on(square);
@@ -334,7 +337,7 @@ impl ThreatAccumulator {
                 let mirrored = king.is_kingside();
 
                 let index = threat_index(piece, square, attacked, target, mirrored, pov);
-                adds.maybe_push(index >= 0, index as usize);
+                adds.maybe_push(index >= 0, index);
             }
         }
 
@@ -352,8 +355,8 @@ impl ThreatAccumulator {
                 let mut add_idx = 0;
 
                 while add_idx + 1 < adds.len() {
-                    let add1 = adds[add_idx];
-                    let add2 = adds[add_idx + 1];
+                    let add1 = adds[add_idx] as usize;
+                    let add2 = adds[add_idx + 1] as usize;
 
                     let vadd1 = PARAMETERS.ft_threat_weights[add1].as_ptr().add(offset);
                     let vadd2 = PARAMETERS.ft_threat_weights[add2].as_ptr().add(offset);
@@ -368,7 +371,7 @@ impl ThreatAccumulator {
                 }
 
                 while add_idx < adds.len() {
-                    let vadd = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
+                    let vadd = PARAMETERS.ft_threat_weights[adds[add_idx] as usize].as_ptr().add(offset);
 
                     for (i, register) in registers.iter_mut().enumerate() {
                         let add_weights = simd::convert_i8_i16(*vadd.add(i * simd::I16_LANES).cast());
@@ -422,8 +425,8 @@ impl ThreatAccumulator {
             let mut sub_idx = 0;
 
             while add_idx < adds.len() && sub_idx < subs.len() {
-                let add = adds[add_idx];
-                let sub = subs[sub_idx];
+                let add = adds[add_idx] as usize;
+                let sub = subs[sub_idx] as usize;
 
                 let vadd = PARAMETERS.ft_threat_weights[add].as_ptr().add(offset);
                 let vsub = PARAMETERS.ft_threat_weights[sub].as_ptr().add(offset);
@@ -439,7 +442,7 @@ impl ThreatAccumulator {
             }
 
             while add_idx < adds.len() {
-                let vadd = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
+                let vadd = PARAMETERS.ft_threat_weights[adds[add_idx] as usize].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
                     let add_weights = simd::convert_i8_i16(*vadd.add(i * simd::I16_LANES).cast());
@@ -450,7 +453,7 @@ impl ThreatAccumulator {
             }
 
             while sub_idx < subs.len() {
-                let vsub = PARAMETERS.ft_threat_weights[subs[sub_idx]].as_ptr().add(offset);
+                let vsub = PARAMETERS.ft_threat_weights[subs[sub_idx] as usize].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
                     let sub_weights = simd::convert_i8_i16(*vsub.add(i * simd::I16_LANES).cast());
