@@ -359,6 +359,22 @@ fn search<NODE: NodeType>(
                 return tt_score;
             }
         }
+
+        // Mini ProbCut
+        if !NODE::PV
+            && !excluded
+            && tt_depth >= depth - 2
+            && is_valid(tt_score)
+            && td.board.is_pseudo_legal(tt_move)
+            && td.board.halfmove_clock() < 90
+            && match tt_bound {
+                Bound::Upper => tt_score <= alpha - 256 && !cut_node,
+                Bound::Lower => tt_score >= beta + 256 && cut_node,
+                _ => false,
+            }
+        {
+            return tt_score;
+        }
     }
 
     // Tablebases Probe
