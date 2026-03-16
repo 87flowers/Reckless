@@ -1296,6 +1296,7 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
         + corrhist.minor.get(stm, td.board.minor_key())
         + corrhist.non_pawn[Color::White].get(stm, td.board.non_pawn_key(Color::White))
         + corrhist.non_pawn[Color::Black].get(stm, td.board.non_pawn_key(Color::Black))
+        + corrhist.sequence.get(stm, td.board.sequence_key(2))
         + td.continuation_corrhist.get(
             td.stack[ply - 2].contcorrhist,
             td.stack[ply - 1].piece,
@@ -1319,6 +1320,8 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
 
     corrhist.non_pawn[Color::White].update(stm, td.board.non_pawn_key(Color::White), bonus);
     corrhist.non_pawn[Color::Black].update(stm, td.board.non_pawn_key(Color::Black), bonus);
+
+    corrhist.sequence.update(stm, td.board.sequence_key(2), bonus);
 
     if td.stack[ply - 1].mv.is_present() && td.stack[ply - 2].mv.is_present() {
         td.continuation_corrhist.update(
