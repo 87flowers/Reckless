@@ -368,8 +368,8 @@ fn search<NODE: NodeType>(
             && td.board.is_pseudo_legal(tt_move)
             && td.board.halfmove_clock() < 90
             && match tt_bound {
-                Bound::Upper => tt_score <= alpha - 256 && !cut_node,
-                Bound::Lower => tt_score >= beta + 256 && cut_node,
+                Bound::Upper => tt_score <= alpha - 1024 && !cut_node,
+                Bound::Lower => tt_score >= beta + 1024 && cut_node,
                 _ => false,
             }
         {
