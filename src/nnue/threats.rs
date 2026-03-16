@@ -12,6 +12,8 @@ mod scalar;
 #[cfg(not(target_feature = "avx2"))]
 pub use scalar::*;
 
+pub type ThreatFeature = i32;
+
 #[derive(Copy, Clone)]
 struct PiecePair {
     // Bit layout:
@@ -29,9 +31,9 @@ impl PiecePair {
         }
     }
 
-    const fn base(self, attacking: Square, attacked: Square) -> isize {
+    const fn base(self, attacking: Square, attacked: Square) -> ThreatFeature {
         let below = ((attacking as u8) < (attacked as u8)) as u32;
-        ((self.inner.wrapping_add(below << 30)) & 0x80FFFFFF) as i32 as isize
+        ((self.inner.wrapping_add(below << 30)) & 0x80FFFFFF) as ThreatFeature
     }
 }
 
@@ -109,7 +111,9 @@ pub fn initialize() {
     }
 }
 
-pub fn threat_index(piece: Piece, from: Square, attacked: Piece, to: Square, mirrored: bool, pov: Color) -> isize {
+pub fn threat_index(
+    piece: Piece, from: Square, attacked: Piece, to: Square, mirrored: bool, pov: Color,
+) -> ThreatFeature {
     let from = from.relative_to(pov) ^ (7 * (mirrored as u8));
     let to = to.relative_to(pov) ^ (7 * (mirrored as u8));
 
@@ -120,7 +124,7 @@ pub fn threat_index(piece: Piece, from: Square, attacked: Piece, to: Square, mir
         let pair = PIECE_PAIR_LOOKUP[attacking][attacked];
 
         pair.base(from, to)
-            + PIECE_OFFSET_LOOKUP[attacking][from] as isize
-            + ATTACK_INDEX_LOOKUP[attacking][from][to] as isize
+            + PIECE_OFFSET_LOOKUP[attacking][from] as ThreatFeature
+            + ATTACK_INDEX_LOOKUP[attacking][from][to] as ThreatFeature
     }
 }
