@@ -633,6 +633,7 @@ fn search<NODE: NodeType>(
 
     if cut_node
         && !excluded
+        && !potential_singularity
         && depth >= 4
         && tt_move.is_quiet()
         && td.board.is_legal(tt_move)
