@@ -639,6 +639,7 @@ fn search<NODE: NodeType>(
         && is_valid(tt_score)
         && tt_score >= probcut_beta
         && !is_decisive(tt_score)
+        && depth >= 4
     {
         let mv = tt_move;
 
