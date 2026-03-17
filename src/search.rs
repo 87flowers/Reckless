@@ -1076,7 +1076,7 @@ fn search<NODE: NodeType>(
     }
 
     if !(in_check
-        || best_move.is_noisy()
+        || (best_move.is_noisy() && !cut_node)
         || (bound == Bound::Upper && best_score >= eval)
         || (bound == Bound::Lower && best_score <= eval))
     {
