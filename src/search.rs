@@ -631,10 +631,12 @@ fn search<NODE: NodeType>(
         }
     }
 
-    if tt_move.is_quiet()
+    if !NODE::PV
+        && tt_move.is_quiet()
         && !excluded
         && cut_node
         && !is_decisive(beta)
+        && is_valid(tt_score)
         && tt_score >= probcut_beta
         && !is_decisive(tt_score)
     {
