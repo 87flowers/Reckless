@@ -674,6 +674,7 @@ fn search<NODE: NodeType>(
 
     let mut best_move = Move::NULL;
     let mut bound = Bound::Upper;
+    let mut best_move_is_bad_noisy = false;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
@@ -946,6 +947,7 @@ fn search<NODE: NodeType>(
             if score > alpha {
                 bound = Bound::Exact;
                 best_move = mv;
+                best_move_is_bad_noisy = mv.is_noisy() && move_picker.stage() == Stage::BadNoisy;
 
                 if !NODE::ROOT && NODE::PV {
                     td.pv_table.update(ply as usize, mv);
@@ -1076,7 +1078,7 @@ fn search<NODE: NodeType>(
     }
 
     if !(in_check
-        || best_move.is_noisy()
+        || best_move_is_bad_noisy
         || (bound == Bound::Upper && best_score >= eval)
         || (bound == Bound::Lower && best_score <= eval))
     {
