@@ -631,16 +631,15 @@ fn search<NODE: NodeType>(
         }
     }
 
-    if !NODE::PV
+    if cut_node
+        && !excluded
+        && depth >= 4
         && tt_move.is_quiet()
         && td.board.is_legal(tt_move)
-        && !excluded
-        && cut_node
         && !is_decisive(beta)
         && is_valid(tt_score)
-        && tt_score >= probcut_beta
         && !is_decisive(tt_score)
-        && depth >= 4
+        && tt_score >= probcut_beta
     {
         let mv = tt_move;
 
