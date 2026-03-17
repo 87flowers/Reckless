@@ -631,6 +631,50 @@ fn search<NODE: NodeType>(
         }
     }
 
+    if tt_move.is_quiet()
+        && !excluded
+        && cut_node
+        && !is_decisive(beta)
+        && tt_score >= probcut_beta
+        && !is_decisive(tt_score)
+    {
+        let mv = tt_move;
+
+        make_move(td, ply, mv);
+
+        let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
+
+        let base_depth = (depth - 4).max(0);
+        let mut probcut_depth = (base_depth - (score - probcut_beta) / 295).clamp(0, base_depth);
+
+        if score >= probcut_beta && probcut_depth > 0 {
+            let adjusted_beta = (probcut_beta + 282 * (base_depth - probcut_depth)).min(Score::INFINITE);
+
+            score = -search::<NonPV>(td, -adjusted_beta, -adjusted_beta + 1, probcut_depth, false, ply + 1);
+
+            if score < adjusted_beta && probcut_beta < adjusted_beta {
+                probcut_depth = base_depth;
+                score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
+            } else {
+                probcut_beta = adjusted_beta;
+            }
+        }
+
+        undo_move(td, mv);
+
+        if td.stopped {
+            return Score::ZERO;
+        }
+
+        if score >= probcut_beta {
+            td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, mv, ply, tt_pv, false);
+
+            if !is_decisive(score) {
+                return (3 * score + beta) / 4;
+            }
+        }
+    }
+
     // Singular Extensions (SE)
     let mut extension = 0;
 
