@@ -633,6 +633,7 @@ fn search<NODE: NodeType>(
 
     if !NODE::PV
         && tt_move.is_quiet()
+        && td.board.is_legal(tt_move)
         && !excluded
         && cut_node
         && !is_decisive(beta)
