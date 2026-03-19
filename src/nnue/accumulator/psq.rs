@@ -1,9 +1,47 @@
-use super::{Aligned, L1_SIZE, PARAMETERS};
 use crate::{
     board::Board,
-    nnue::{AccumulatorCache, INPUT_BUCKETS_LAYOUT, accumulator::CacheEntry, simd},
-    types::{ArrayVec, Bitboard, Color, Move, MoveKind, Piece, PieceType, Square},
+    nnue::{AccumulatorCache, Aligned, INPUT_BUCKETS_LAYOUT, L1_SIZE, PARAMETERS, simd},
+    types::{ArrayVec, Color, Move, MoveKind, Piece, PieceType, Square},
 };
+
+#[cfg(not(target_feature = "avx512vbmi2"))]
+use crate::types::Bitboard;
+
+#[derive(Clone)]
+#[cfg(not(target_feature = "avx512vbmi2"))]
+pub struct CacheEntry {
+    values: Aligned<[i16; L1_SIZE]>,
+    pieces: [Bitboard; PieceType::NUM],
+    colors: [Bitboard; Color::NUM],
+}
+
+#[cfg(not(target_feature = "avx512vbmi2"))]
+impl Default for CacheEntry {
+    fn default() -> Self {
+        Self {
+            values: PARAMETERS.ft_biases.clone(),
+            pieces: [Bitboard::default(); PieceType::NUM],
+            colors: [Bitboard::default(); Color::NUM],
+        }
+    }
+}
+
+#[derive(Clone)]
+#[cfg(target_feature = "avx512vbmi2")]
+pub struct CacheEntry {
+    values: Aligned<[i16; L1_SIZE]>,
+    mailbox: [Piece; Square::NUM],
+}
+
+#[cfg(target_feature = "avx512vbmi2")]
+impl Default for CacheEntry {
+    fn default() -> Self {
+        Self {
+            values: PARAMETERS.ft_biases.clone(),
+            mailbox: [Piece::default(); Square::NUM],
+        }
+    }
+}
 
 pub type PstFeature = u16;
 
@@ -21,6 +59,8 @@ pub struct PstAccumulator {
     pub accurate: [bool; 2],
 }
 
+static mut CNT: usize = 0;
+
 impl PstAccumulator {
     pub fn new() -> Self {
         Self {
@@ -30,6 +70,7 @@ impl PstAccumulator {
         }
     }
 
+    #[cfg(not(target_feature = "avx512vbmi2"))]
     pub fn refresh(&mut self, board: &Board, pov: Color, cache: &mut AccumulatorCache) {
         let king = board.king_square(pov);
 
@@ -52,10 +93,30 @@ impl PstAccumulator {
                 let to_add = pieces & !(entry.pieces[piece_type] & entry.colors[color]);
                 let to_sub = !pieces & (entry.pieces[piece_type] & entry.colors[color]);
 
-                Self::push_features(&mut adds, color, piece_type, to_add, king, pov);
-                Self::push_features(&mut subs, color, piece_type, to_sub, king, pov);
+                for square in to_add {
+                    adds.push(pst_index(color, piece_type, square, king, pov));
+                }
+                for square in to_sub {
+                    subs.push(pst_index(color, piece_type, square, king, pov));
+                }
             }
         }
+
+        // eprint!("adds: ");
+        for add in adds.iter() {
+            // eprint!(" {:04x}", add);
+        }
+        // eprint!("\n");
+        // eprint!("subs: ");
+        for sub in subs.iter() {
+            // eprint!(" {:04x}", sub);
+        }
+        // eprint!("\n");
+
+        if unsafe { CNT } > 10 {
+            panic!();
+        }
+        unsafe { CNT += 1 };
 
         unsafe { apply_changes(entry, adds, subs) };
 
@@ -66,40 +127,114 @@ impl PstAccumulator {
         self.accurate[pov] = true;
     }
 
-    #[inline]
-    #[cfg(not(target_feature = "avx512vbmi2"))]
-    fn push_features(
-        features: &mut ArrayVec<PstFeature, 64>, color: Color, piece_type: PieceType, bb: Bitboard, king: Square,
-        pov: Color,
-    ) {
-        for square in bb {
-            features.push(pst_index(color, piece_type, square, king, pov));
-        }
-    }
-
-    #[inline]
     #[cfg(target_feature = "avx512vbmi2")]
-    fn push_features(
-        features: &mut ArrayVec<PstFeature, 64>, color: Color, piece_type: PieceType, bb: Bitboard, king: Square,
-        pov: Color,
-    ) {
+    pub fn refresh(&mut self, board: &Board, pov: Color, cache: &mut AccumulatorCache) {
+        let king = board.king_square(pov);
+
+        let entry = &mut cache.entries[pov][(king.is_kingside()) as usize]
+            [INPUT_BUCKETS_LAYOUT[king as usize ^ (56 * pov as usize)] as usize];
+
+        let mut adds = ArrayVec::<PstFeature, 64>::new();
+        let mut subs = ArrayVec::<PstFeature, 64>::new();
+
         unsafe {
             use std::arch::x86_64::*;
 
-            let base = pst_index(color, piece_type, Square::new(0), king, pov);
-
+            let flip = get_flip(king, pov);
             let iota = _mm512_set_epi8(
                 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38,
                 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12,
                 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
             );
-            let squares = _mm512_castsi512_si128(_mm512_maskz_compress_epi8(bb.0, iota));
-            let to_write = _mm256_xor_si256(_mm256_set1_epi16(base as i16), _mm256_cvtepu8_epi16(squares));
-            features.unchecked_write(|data| {
-                _mm256_storeu_si256(data.cast(), to_write);
-                bb.count()
+            let iota = _mm512_xor_si512(iota, _mm512_set1_epi8(flip as i8));
+
+            let old_mailbox = _mm512_loadu_si512(entry.mailbox.as_ptr().cast());
+            let new_mailbox = board.mailbox_vector();
+
+            {
+                let mut ascii = String::new();
+                ascii.push_str("+---+---+---+---+---+---+---+---+\n");
+                for rank in (0..8).rev() {
+                    ascii.push('|');
+                    for file in 0..8 {
+                        let square = Square::from_rank_file(rank, file);
+                        let piece = entry.mailbox[square as usize];
+                        let symbol = piece.try_into().unwrap_or(' ');
+                        ascii.push_str(&format!(" {symbol} |"));
+                    }
+                    ascii.push_str(&format!(" {}\n", rank + 1));
+                    ascii.push_str("+---+---+---+---+---+---+---+---+\n");
+                }
+                ascii.push_str("  a   b   c   d   e   f   g   h\n");
+                // eprintln!("{ascii}");
+            }
+            // eprintln!("{}", board);
+
+            let diff = _mm512_cmpneq_epu8_mask(old_mailbox, new_mailbox);
+
+            let none_mailbox = _mm512_set1_epi8(12);
+            let lut = _mm512_broadcast_i32x4(match pov {
+                Color::White => _mm_set_epi8(12, 12, 12, 12, 11, 5, 10, 4, 9, 3, 8, 2, 7, 1, 6, 0),
+                Color::Black => _mm_set_epi8(12, 12, 12, 12, 5, 11, 4, 10, 3, 9, 2, 8, 1, 7, 0, 6),
             });
+            let old_mailbox = _mm512_shuffle_epi8(lut, old_mailbox);
+            let new_mailbox = _mm512_shuffle_epi8(lut, new_mailbox);
+
+            let to_add = _mm512_cmpneq_epu8_mask(new_mailbox, none_mailbox) & diff;
+            let to_sub = _mm512_cmpneq_epu8_mask(old_mailbox, none_mailbox) & diff;
+
+            // eprintln!("{:016x}", diff);
+            // eprintln!("{:016x}", to_add);
+            // eprintln!("{:016x}", to_sub);
+
+            let base = _mm512_set1_epi16(INPUT_BUCKETS_LAYOUT[king ^ flip] as i16 * 768);
+
+            unsafe fn build_index(mask: u64, base: __m512i, iota: __m512i, mailbox: __m512i) -> __m512i {
+                unsafe fn compress_and_expand(mask: u64, vector: __m512i) -> __m512i {
+                    _mm512_cvtepi8_epi16(_mm512_castsi512_si256(_mm512_maskz_compress_epi8(mask, vector)))
+                }
+
+                _mm512_add_epi16(
+                    base,
+                    _mm512_or_si512(
+                        _mm512_slli_epi16(compress_and_expand(mask, mailbox), 6),
+                        compress_and_expand(mask, iota),
+                    ),
+                )
+            }
+
+            adds.unchecked_write(|data| {
+                _mm512_storeu_si512(data.cast(), build_index(to_add, base, iota, new_mailbox));
+                to_add.count_ones() as usize
+            });
+            subs.unchecked_write(|data| {
+                _mm512_storeu_si512(data.cast(), build_index(to_sub, base, iota, old_mailbox));
+                to_sub.count_ones() as usize
+            });
+
+            // eprint!("adds: ");
+            for add in adds.iter() {
+                // eprint!(" {:04x}", add);
+            }
+            // eprint!("\n");
+            // eprint!("subs: ");
+            for sub in subs.iter() {
+                // eprint!(" {:04x}", sub);
+            }
+            // eprint!("\n");
+
+            if unsafe { CNT } > 10 {
+                // panic!();
+            }
+            unsafe { CNT += 1 };
+
+            apply_changes(entry, adds, subs);
+
+            _mm512_storeu_si512(entry.mailbox.as_mut_ptr().cast(), board.mailbox_vector());
         }
+
+        self.values[pov] = *entry.values;
+        self.accurate[pov] = true;
     }
 
     pub fn update(&mut self, prev: &Self, board: &Board, king: Square, pov: Color) {
@@ -235,8 +370,12 @@ unsafe fn apply_changes(entry: &mut CacheEntry, adds: ArrayVec<PstFeature, 64>, 
     }
 }
 
+fn get_flip(king: Square, pov: Color) -> u8 {
+    (7 * ((king.is_kingside()) as u8)) ^ (56 * (pov as u8))
+}
+
 fn pst_index(color: Color, piece: PieceType, square: Square, king: Square, pov: Color) -> PstFeature {
-    let flip = (7 * ((king.is_kingside()) as u8)) ^ (56 * (pov as u8));
+    let flip = get_flip(king, pov);
 
     INPUT_BUCKETS_LAYOUT[king ^ flip] as PstFeature * 768
         + 384 * (color != pov) as PstFeature

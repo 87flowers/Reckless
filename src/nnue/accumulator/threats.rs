@@ -1,7 +1,7 @@
-use super::{Aligned, L1_SIZE, PARAMETERS, simd};
 use crate::{
     board::Board,
     lookup::attacks,
+    nnue::{Aligned, L1_SIZE, PARAMETERS, simd},
     types::{ArrayVec, Color, Piece, Square},
 };
 
