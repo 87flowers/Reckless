@@ -138,39 +138,57 @@ impl PstAccumulator {
     }
 
     fn add1_sub1(&mut self, prev: &Self, add1: PstFeature, sub1: PstFeature, pov: Color) {
-        let vacc = self.values[pov].as_mut_ptr();
-        let vprev = prev.values[pov].as_ptr();
+        unsafe {
+            let mut registers: [_; REGISTERS] = std::mem::zeroed();
 
-        let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr();
-        let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr();
+            for offset in (0..L1_SIZE).step_by(REGISTERS * simd::I16_LANES) {
+                let output = self.values[pov].as_mut_ptr().add(offset);
+                let input = prev.values[pov].as_ptr().add(offset);
 
-        for i in (0..L1_SIZE).step_by(simd::I16_LANES) {
-            unsafe {
-                let mut v = *vprev.add(i).cast();
-                v = simd::add_i16(v, *vadd1.add(i).cast());
-                v = simd::sub_i16(v, *vsub1.add(i).cast());
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = *input.add(i * simd::I16_LANES).cast();
+                }
 
-                *vacc.add(i).cast() = v;
+                let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr().add(offset);
+                let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr().add(offset);
+
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = simd::add_i16(*register, *vadd1.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, *vsub1.add(i * simd::I16_LANES).cast());
+                }
+
+                for (i, register) in registers.into_iter().enumerate() {
+                    *output.add(i * simd::I16_LANES).cast() = register;
+                }
             }
         }
     }
 
     fn add1_sub2(&mut self, prev: &Self, add1: PstFeature, sub1: PstFeature, sub2: PstFeature, pov: Color) {
-        let vacc = self.values[pov].as_mut_ptr();
-        let vprev = prev.values[pov].as_ptr();
+        unsafe {
+            let mut registers: [_; REGISTERS] = std::mem::zeroed();
 
-        let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr();
-        let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr();
-        let vsub2 = PARAMETERS.ft_piece_weights[sub2 as usize].as_ptr();
+            for offset in (0..L1_SIZE).step_by(REGISTERS * simd::I16_LANES) {
+                let output = self.values[pov].as_mut_ptr().add(offset);
+                let input = prev.values[pov].as_ptr().add(offset);
 
-        for i in (0..L1_SIZE).step_by(simd::I16_LANES) {
-            unsafe {
-                let mut v = *vprev.add(i).cast();
-                v = simd::add_i16(v, *vadd1.add(i).cast());
-                v = simd::sub_i16(v, *vsub1.add(i).cast());
-                v = simd::sub_i16(v, *vsub2.add(i).cast());
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = *input.add(i * simd::I16_LANES).cast();
+                }
 
-                *vacc.add(i).cast() = v;
+                let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr().add(offset);
+                let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr().add(offset);
+                let vsub2 = PARAMETERS.ft_piece_weights[sub2 as usize].as_ptr().add(offset);
+
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = simd::add_i16(*register, *vadd1.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, *vsub1.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, *vsub2.add(i * simd::I16_LANES).cast());
+                }
+
+                for (i, register) in registers.into_iter().enumerate() {
+                    *output.add(i * simd::I16_LANES).cast() = register;
+                }
             }
         }
     }
@@ -178,23 +196,32 @@ impl PstAccumulator {
     fn add2_sub2(
         &mut self, prev: &Self, add1: PstFeature, add2: PstFeature, sub1: PstFeature, sub2: PstFeature, pov: Color,
     ) {
-        let vacc = self.values[pov].as_mut_ptr();
-        let vprev = prev.values[pov].as_ptr();
+        unsafe {
+            let mut registers: [_; REGISTERS] = std::mem::zeroed();
 
-        let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr();
-        let vadd2 = PARAMETERS.ft_piece_weights[add2 as usize].as_ptr();
-        let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr();
-        let vsub2 = PARAMETERS.ft_piece_weights[sub2 as usize].as_ptr();
+            for offset in (0..L1_SIZE).step_by(REGISTERS * simd::I16_LANES) {
+                let output = self.values[pov].as_mut_ptr().add(offset);
+                let input = prev.values[pov].as_ptr().add(offset);
 
-        for i in (0..L1_SIZE).step_by(simd::I16_LANES) {
-            unsafe {
-                let mut v = *vprev.add(i).cast();
-                v = simd::add_i16(v, *vadd1.add(i).cast());
-                v = simd::add_i16(v, *vadd2.add(i).cast());
-                v = simd::sub_i16(v, *vsub1.add(i).cast());
-                v = simd::sub_i16(v, *vsub2.add(i).cast());
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = *input.add(i * simd::I16_LANES).cast();
+                }
 
-                *vacc.add(i).cast() = v;
+                let vadd1 = PARAMETERS.ft_piece_weights[add1 as usize].as_ptr().add(offset);
+                let vadd2 = PARAMETERS.ft_piece_weights[add2 as usize].as_ptr().add(offset);
+                let vsub1 = PARAMETERS.ft_piece_weights[sub1 as usize].as_ptr().add(offset);
+                let vsub2 = PARAMETERS.ft_piece_weights[sub2 as usize].as_ptr().add(offset);
+
+                for (i, register) in registers.iter_mut().enumerate() {
+                    *register = simd::add_i16(*register, *vadd1.add(i * simd::I16_LANES).cast());
+                    *register = simd::add_i16(*register, *vadd2.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, *vsub1.add(i * simd::I16_LANES).cast());
+                    *register = simd::sub_i16(*register, *vsub2.add(i * simd::I16_LANES).cast());
+                }
+
+                for (i, register) in registers.into_iter().enumerate() {
+                    *output.add(i * simd::I16_LANES).cast() = register;
+                }
             }
         }
     }
