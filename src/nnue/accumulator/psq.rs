@@ -148,7 +148,9 @@ impl PstAccumulator {
 
             let base = _mm512_set1_epi16(INPUT_BUCKETS_LAYOUT[king ^ flip] as i16 * 768);
 
+            #[inline]
             unsafe fn build_index(mask: u64, base: __m512i, iota: __m512i, mailbox: __m512i) -> __m512i {
+                #[inline]
                 unsafe fn compress_and_expand(mask: u64, vector: __m512i) -> __m512i {
                     _mm512_cvtepi8_epi16(_mm512_castsi512_si256(_mm512_maskz_compress_epi8(mask, vector)))
                 }
@@ -162,12 +164,15 @@ impl PstAccumulator {
                 )
             }
 
+            let to_add_vec = build_index(to_add, base, iota, new_mailbox);
+            let to_sub_vec = build_index(to_sub, base, iota, old_mailbox);
+
             adds.unchecked_write(|data| {
-                _mm512_storeu_si512(data.cast(), build_index(to_add, base, iota, new_mailbox));
+                _mm512_storeu_si512(data.cast(), to_add_vec);
                 to_add.count_ones() as usize
             });
             subs.unchecked_write(|data| {
-                _mm512_storeu_si512(data.cast(), build_index(to_sub, base, iota, old_mailbox));
+                _mm512_storeu_si512(data.cast(), to_sub_vec);
                 to_sub.count_ones() as usize
             });
 
