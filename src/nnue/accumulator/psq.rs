@@ -130,23 +130,23 @@ impl PstAccumulator {
             );
             let iota = _mm512_xor_si512(iota, _mm512_set1_epi8(flip as i8));
 
+            let base = _mm512_set1_epi16(INPUT_BUCKETS_LAYOUT[king ^ flip] as i16 * 768);
+
             let old_mailbox = _mm512_loadu_si512(entry.mailbox.as_ptr().cast());
             let new_mailbox = board.mailbox_vector();
 
             let diff = _mm512_cmpneq_epu8_mask(old_mailbox, new_mailbox);
 
-            let none_mailbox = _mm512_set1_epi8(12);
+            let none_mailbox = _mm512_set1_epi8(Piece::None as i8);
+            let to_add = _mm512_cmpneq_epu8_mask(new_mailbox, none_mailbox) & diff;
+            let to_sub = _mm512_cmpneq_epu8_mask(old_mailbox, none_mailbox) & diff;
+
             let lut = _mm512_broadcast_i32x4(match pov {
                 Color::White => _mm_set_epi8(12, 12, 12, 12, 11, 5, 10, 4, 9, 3, 8, 2, 7, 1, 6, 0),
                 Color::Black => _mm_set_epi8(12, 12, 12, 12, 5, 11, 4, 10, 3, 9, 2, 8, 1, 7, 0, 6),
             });
             let old_mailbox = _mm512_shuffle_epi8(lut, old_mailbox);
             let new_mailbox = _mm512_shuffle_epi8(lut, new_mailbox);
-
-            let to_add = _mm512_cmpneq_epu8_mask(new_mailbox, none_mailbox) & diff;
-            let to_sub = _mm512_cmpneq_epu8_mask(old_mailbox, none_mailbox) & diff;
-
-            let base = _mm512_set1_epi16(INPUT_BUCKETS_LAYOUT[king ^ flip] as i16 * 768);
 
             #[inline]
             unsafe fn build_index(mask: u64, base: __m512i, iota: __m512i, mailbox: __m512i) -> __m512i {
