@@ -710,6 +710,7 @@ fn search<NODE: NodeType>(
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
         };
+        td.stack[ply + 1].history = history;
 
         if !NODE::ROOT && !is_loss(best_score) {
             // Late Move Pruning (LMP)
@@ -820,6 +821,10 @@ fn search<NODE: NodeType>(
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 512 {
+                reduction += 128;
+            }
+
+            if td.stack[ply].history < 0 && history <= td.stack[ply].history {
                 reduction += 128;
             }
 
