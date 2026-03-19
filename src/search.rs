@@ -824,7 +824,7 @@ fn search<NODE: NodeType>(
                 reduction += 128;
             }
 
-            if td.stack[ply].history < 0 && history <= td.stack[ply].history {
+            if history <= td.stack[ply].history {
                 reduction += 128;
             }
 
