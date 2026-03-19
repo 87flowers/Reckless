@@ -59,8 +59,6 @@ pub struct PstAccumulator {
     pub accurate: [bool; 2],
 }
 
-static mut CNT: usize = 0;
-
 impl PstAccumulator {
     pub fn new() -> Self {
         Self {
@@ -102,22 +100,6 @@ impl PstAccumulator {
             }
         }
 
-        // eprint!("adds: ");
-        for add in adds.iter() {
-            // eprint!(" {:04x}", add);
-        }
-        // eprint!("\n");
-        // eprint!("subs: ");
-        for sub in subs.iter() {
-            // eprint!(" {:04x}", sub);
-        }
-        // eprint!("\n");
-
-        if unsafe { CNT } > 10 {
-            panic!();
-        }
-        unsafe { CNT += 1 };
-
         unsafe { apply_changes(entry, adds, subs) };
 
         entry.pieces = board.pieces_bbs();
@@ -151,25 +133,6 @@ impl PstAccumulator {
             let old_mailbox = _mm512_loadu_si512(entry.mailbox.as_ptr().cast());
             let new_mailbox = board.mailbox_vector();
 
-            {
-                let mut ascii = String::new();
-                ascii.push_str("+---+---+---+---+---+---+---+---+\n");
-                for rank in (0..8).rev() {
-                    ascii.push('|');
-                    for file in 0..8 {
-                        let square = Square::from_rank_file(rank, file);
-                        let piece = entry.mailbox[square as usize];
-                        let symbol = piece.try_into().unwrap_or(' ');
-                        ascii.push_str(&format!(" {symbol} |"));
-                    }
-                    ascii.push_str(&format!(" {}\n", rank + 1));
-                    ascii.push_str("+---+---+---+---+---+---+---+---+\n");
-                }
-                ascii.push_str("  a   b   c   d   e   f   g   h\n");
-                // eprintln!("{ascii}");
-            }
-            // eprintln!("{}", board);
-
             let diff = _mm512_cmpneq_epu8_mask(old_mailbox, new_mailbox);
 
             let none_mailbox = _mm512_set1_epi8(12);
@@ -182,10 +145,6 @@ impl PstAccumulator {
 
             let to_add = _mm512_cmpneq_epu8_mask(new_mailbox, none_mailbox) & diff;
             let to_sub = _mm512_cmpneq_epu8_mask(old_mailbox, none_mailbox) & diff;
-
-            // eprintln!("{:016x}", diff);
-            // eprintln!("{:016x}", to_add);
-            // eprintln!("{:016x}", to_sub);
 
             let base = _mm512_set1_epi16(INPUT_BUCKETS_LAYOUT[king ^ flip] as i16 * 768);
 
@@ -211,22 +170,6 @@ impl PstAccumulator {
                 _mm512_storeu_si512(data.cast(), build_index(to_sub, base, iota, old_mailbox));
                 to_sub.count_ones() as usize
             });
-
-            // eprint!("adds: ");
-            for add in adds.iter() {
-                // eprint!(" {:04x}", add);
-            }
-            // eprint!("\n");
-            // eprint!("subs: ");
-            for sub in subs.iter() {
-                // eprint!(" {:04x}", sub);
-            }
-            // eprint!("\n");
-
-            if unsafe { CNT } > 10 {
-                // panic!();
-            }
-            unsafe { CNT += 1 };
 
             apply_changes(entry, adds, subs);
 
