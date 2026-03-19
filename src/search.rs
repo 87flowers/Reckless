@@ -789,6 +789,8 @@ fn search<NODE: NodeType>(
                 reduction -= 109 * history / 1024;
             }
 
+            reduction -= td.stack[ply].history * 16 / 1024;
+
             if NODE::PV {
                 reduction -= 411 + 421 * (beta - alpha) / td.root_delta;
             }
@@ -821,10 +823,6 @@ fn search<NODE: NodeType>(
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 512 {
-                reduction += 128;
-            }
-
-            if history <= td.stack[ply].history {
                 reduction += 128;
             }
 
