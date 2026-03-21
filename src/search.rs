@@ -408,7 +408,11 @@ fn search<NODE: NodeType>(
         raw_eval = Score::NONE;
         eval = td.stack[ply].eval;
     } else if let Some(entry) = &entry {
-        raw_eval = if is_valid(entry.raw_eval) { entry.raw_eval } else { td.nnue.evaluate(&td.board) };
+        raw_eval = if is_valid(entry.raw_eval) && (entry.mv.is_null() || td.board.is_legal(entry.mv)) {
+            entry.raw_eval
+        } else {
+            td.nnue.evaluate(&td.board)
+        };
         eval = correct_eval(td, raw_eval, correction_value);
     } else {
         raw_eval = td.nnue.evaluate(&td.board);
