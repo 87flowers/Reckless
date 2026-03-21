@@ -150,7 +150,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
                         average[td.pv_index] = if average[td.pv_index] == Score::NONE {
                             score
                         } else {
-                            (average[td.pv_index] + score) / 2
+                            (average[td.pv_index] * 6 + score * 10) / 16
                         };
 
                         td.shared.best_stats[td.pv_index].fetch_max(
