@@ -429,6 +429,7 @@ fn search<NODE: NodeType>(
             Bound::Lower => tt_score > eval,
             _ => true,
         }
+        && (tt_move.is_null() || td.board.is_legal(tt_move))
     {
         estimated_score = tt_score;
     }
@@ -442,6 +443,7 @@ fn search<NODE: NodeType>(
             Bound::Lower => tt_score >= beta,
             _ => true,
         }
+        && (tt_move.is_null() || td.board.is_legal(tt_move))
     {
         estimated_score = tt_score;
         eval = tt_score;
