@@ -327,7 +327,9 @@ fn search<NODE: NodeType>(
     let mut tt_pv = NODE::PV;
 
     // Search early TT cutoff
-    if let Some(entry) = &entry {
+    if let Some(entry) = &entry
+        && td.board.is_legal(entry.mv)
+    {
         tt_depth = entry.depth;
         tt_move = entry.mv;
         tt_score = entry.score;
