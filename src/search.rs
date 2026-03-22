@@ -545,7 +545,7 @@ fn search<NODE: NodeType>(
         let r = (5154
             + 271 * depth
             + 535 * (estimated_score - beta).clamp(0, 1073) / 128
-            + 1024 * no_opponent_threats as i32)
+            + 192 * no_opponent_threats as i32)
             / 1024;
 
         td.stack[ply].conthist = td.stack.sentinel().conthist;
