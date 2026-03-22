@@ -503,7 +503,11 @@ fn search<NODE: NodeType>(
         && alpha < 2048
         && !tt_move.is_quiet()
     {
-        return qsearch::<NonPV>(td, alpha, beta, ply);
+        let margin = 15;
+        let score = qsearch::<NonPV>(td, alpha - margin, beta - margin, ply);
+        if score <= alpha - margin {
+            return score;
+        }
     }
 
     // Reverse Futility Pruning (RFP)
