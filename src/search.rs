@@ -112,7 +112,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
             delta += average[td.pv_index] * average[td.pv_index] / 23660;
 
             let mut alpha = (average[td.pv_index] - delta).max(-Score::INFINITE);
-            let mut beta = (average[td.pv_index] + delta).min(Score::INFINITE);
+            let mut beta = (average[td.pv_index] + delta * 2 / 3).min(Score::INFINITE);
 
             let best_avg = ((td.shared.best_stats[td.pv_index].load(Ordering::Acquire) & 0xffff) as i32 - 32768
                 + average[td.pv_index])
