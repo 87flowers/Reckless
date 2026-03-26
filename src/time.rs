@@ -76,6 +76,18 @@ impl TimeManager {
         }
     }
 
+    pub fn soft_time_bound(&self) -> Option<Duration> {
+        match self.limits {
+            Limits::Infinite | Limits::Depth(_) | Limits::Nodes(_) => None,
+            Limits::Time(maximum) => Some(Duration::from_millis(maximum)),
+            Limits::Fischer(..) | Limits::Cyclic(..) => Some(self.soft_bound),
+        }
+    }
+
+    pub fn soft_time_fraction_remaining(&self) -> Option<f32> {
+        self.soft_time_bound().map(|max| 1.0 - self.elapsed().as_secs_f32() / max.as_secs_f32())
+    }
+
     pub fn check_time(&self, td: &ThreadData) -> bool {
         if td.completed_depth == 0 {
             return false;

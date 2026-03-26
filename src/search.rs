@@ -83,8 +83,11 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
         _ => (MAX_PLY - 1) as i32,
     };
 
-    // Iterative Deepening
-    for depth in 1..=max_depth {
+    let mut depth = 0;
+    let mut same_depth_count = 0;
+    let mut remaining_time_fraction = 1.0;
+
+    while depth <= max_depth as i32 {
         best_move_changes /= 2;
 
         td.sel_depth = 0;
@@ -250,6 +253,16 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
 
         if td.shared.status.get() == Status::STOPPED {
             break;
+        }
+
+        let current_remaining_time_fraction = td.time_manager.soft_time_fraction_remaining().unwrap_or(1.0);
+        let time_consumed = remaining_time_fraction - current_remaining_time_fraction;
+        remaining_time_fraction = current_remaining_time_fraction;
+        if remaining_time_fraction > 2.0 * time_consumed || same_depth_count >= 2 {
+            same_depth_count = 0;
+            depth += 1;
+        } else {
+            same_depth_count += 1;
         }
     }
 
