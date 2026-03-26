@@ -48,6 +48,35 @@ impl super::Board {
         let king_rays =
             [ray_pass(self.king_square(Color::White), mv.to()), ray_pass(self.king_square(Color::Black), mv.to())];
 
+        #[cfg(not(target_feature = "avx512f"))]
+        fn least_valuable_attacker(&self, attackers: Bitboard) -> PieceType {
+            for index in 0..PieceType::NUM {
+                let piece = PieceType::new(index);
+                if !(self.pieces(piece) & attackers).is_empty() {
+                    return piece;
+                }
+            }
+            unreachable!();
+        }
+
+        #[cfg(target_feature = "avx512f")]
+        let pieces = unsafe {
+            use std::arch::x86_64::*;
+            _mm512_loadu_epi64(self.pieces.as_ptr().cast())
+        };
+
+        #[cfg(target_feature = "avx512f")]
+        let least_valuable_attacker = |attackers: Bitboard| -> PieceType {
+            unsafe {
+                use std::arch::x86_64::*;
+                let bit = _mm512_cmpneq_epi64_mask(
+                    _mm512_and_si512(pieces, _mm512_set1_epi64(attackers.0 as i64)),
+                    _mm512_setzero_si512(),
+                );
+                PieceType::new(bit.trailing_zeros() as usize)
+            }
+        };
+
         loop {
             let mut our_attackers = attackers & self.colors(stm);
 
@@ -60,7 +89,7 @@ impl super::Board {
                 break;
             }
 
-            let attacker = self.least_valuable_attacker(our_attackers);
+            let attacker = least_valuable_attacker(our_attackers);
 
             // The king cannot capture a protected piece; the side to move loses the exchange
             if attacker == PieceType::King && !(attackers & self.colors(!stm)).is_empty() {
@@ -104,15 +133,5 @@ impl super::Board {
         } else {
             capture.value()
         }
-    }
-
-    fn least_valuable_attacker(&self, attackers: Bitboard) -> PieceType {
-        for index in 0..PieceType::NUM {
-            let piece = PieceType::new(index);
-            if !(self.pieces(piece) & attackers).is_empty() {
-                return piece;
-            }
-        }
-        unreachable!();
     }
 }
