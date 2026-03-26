@@ -49,7 +49,7 @@ impl super::Board {
             [ray_pass(self.king_square(Color::White), mv.to()), ray_pass(self.king_square(Color::Black), mv.to())];
 
         #[cfg(not(target_feature = "avx512f"))]
-        fn least_valuable_attacker(&self, attackers: Bitboard) -> PieceType {
+        let least_valuable_attacker = |attackers: Bitboard| -> PieceType {
             for index in 0..PieceType::NUM {
                 let piece = PieceType::new(index);
                 if !(self.pieces(piece) & attackers).is_empty() {
@@ -57,7 +57,7 @@ impl super::Board {
                 }
             }
             unreachable!();
-        }
+        };
 
         #[cfg(target_feature = "avx512f")]
         let pieces = unsafe {
