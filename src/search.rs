@@ -671,7 +671,7 @@ fn search<NODE: NodeType>(
             extension += (score < singular_beta - triple_margin) as i32;
         }
         // Multi-Cut
-        else if score >= beta && !is_decisive(score) {
+        else if !NODE::PV && score >= beta && !is_decisive(score) {
             return (2 * score + beta) / 3;
         }
         // Negative Extensions
