@@ -787,7 +787,7 @@ fn search<NODE: NodeType>(
 
             reduction += 600 * (is_valid(tt_score) && tt_score < alpha) as i32;
             reduction += 300 * (is_valid(tt_score) && tt_depth < depth) as i32;
-            reduction += 400 * (td.stack[ply - 1].mv == Move::NULL && eval <= alpha + 32) as i32;
+            reduction += 400 * (!NODE::ROOT && td.stack[ply - 1].mv == Move::NULL && eval <= alpha - 16) as i32;
 
             if is_quiet {
                 reduction += 1972;
