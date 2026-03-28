@@ -168,12 +168,10 @@ impl ThreatAccumulator {
                 *register = *input.add(i * simd::I16_LANES).cast();
             }
 
-            let mut add_idx = 0;
-            let mut sub_idx = 0;
-
-            while add_idx < adds.len() && sub_idx < subs.len() {
-                let add = adds[add_idx];
-                let sub = subs[sub_idx];
+            let paired_len = adds.len().min(subs.len());
+            for idx in 0..paired_len {
+                let add = adds[idx];
+                let sub = subs[idx];
 
                 let vadd = PARAMETERS.ft_threat_weights[add].as_ptr().add(offset);
                 let vsub = PARAMETERS.ft_threat_weights[sub].as_ptr().add(offset);
@@ -183,31 +181,24 @@ impl ThreatAccumulator {
                     let sub_weights = simd::convert_i8_i16(*vsub.add(i * simd::I16_LANES).cast());
                     *register = simd::add_i16(*register, simd::sub_i16(add_weights, sub_weights));
                 }
-
-                add_idx += 1;
-                sub_idx += 1;
             }
 
-            while add_idx < adds.len() {
+            for add_idx in paired_len..adds.len() {
                 let vadd = PARAMETERS.ft_threat_weights[adds[add_idx]].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
                     let add_weights = simd::convert_i8_i16(*vadd.add(i * simd::I16_LANES).cast());
                     *register = simd::add_i16(*register, add_weights);
                 }
-
-                add_idx += 1;
             }
 
-            while sub_idx < subs.len() {
+            for sub_idx in paired_len..subs.len() {
                 let vsub = PARAMETERS.ft_threat_weights[subs[sub_idx]].as_ptr().add(offset);
 
                 for (i, register) in registers.iter_mut().enumerate() {
                     let sub_weights = simd::convert_i8_i16(*vsub.add(i * simd::I16_LANES).cast());
                     *register = simd::sub_i16(*register, sub_weights);
                 }
-
-                sub_idx += 1;
             }
 
             for (i, register) in registers.iter().enumerate() {
