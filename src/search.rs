@@ -827,6 +827,10 @@ fn search<NODE: NodeType>(
                 reduction += 1604;
             }
 
+            if td.stack[ply + 1].cutoff_count < 2 && td.stack[ply + 2].cutoff_count > 32 {
+                reduction -= 1024;
+            }
+
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 512 {
                 reduction += 128;
             }
@@ -885,6 +889,10 @@ fn search<NODE: NodeType>(
 
             if td.stack[ply + 1].cutoff_count > 2 {
                 reduction += 1452;
+            }
+
+            if td.stack[ply + 1].cutoff_count < 2 && td.stack[ply + 2].cutoff_count > 32 {
+                reduction -= 1024;
             }
 
             if mv == tt_move {
