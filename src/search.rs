@@ -463,6 +463,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply + 1].killer = Move::NULL;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -785,6 +786,7 @@ fn search<NODE: NodeType>(
             reduction -= 65 * move_count;
             reduction -= 3183 * correction_value.abs() / 1024;
             reduction += 1300 * alpha_raises;
+            reduction -= 512 * (mv == td.stack[ply].killer) as i32;
 
             reduction += 600 * (is_valid(tt_score) && tt_score <= alpha) as i32;
             reduction += 300 * (is_valid(tt_score) && tt_depth < depth) as i32;
