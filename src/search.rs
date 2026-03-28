@@ -831,7 +831,7 @@ fn search<NODE: NodeType>(
                 reduction += 128;
             }
 
-            let depth_cap = new_depth + (move_count <= 3 && reduction < -4096) as i32 + (move_count <= 6) as i32 + 1;
+            let depth_cap = new_depth + 3 - (move_count / 3).min(2);
             let reduced_depth = (new_depth - reduction / 1024).clamp(1, depth_cap) + 2 * NODE::PV as i32;
 
             td.stack[ply].reduction = reduction;
