@@ -27,11 +27,11 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-    pub const fn new(tt_move: Move, killer: Move) -> Self {
+    pub fn new(tt_move: Move, killer: Move) -> Self {
         Self {
             list: MoveList::new(),
             tt_move,
-            killer,
+            killer: if tt_move != killer { killer } else { Move::NULL },
             threshold: None,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
@@ -122,6 +122,9 @@ impl MovePicker {
                     if entry.mv == self.tt_move {
                         continue;
                     }
+                    if entry.mv == self.killer {
+                        self.killer = Move::NULL;
+                    }
 
                     if NODE::ROOT {
                         self.score_quiet(td, ply);
@@ -136,11 +139,7 @@ impl MovePicker {
 
         if self.stage == Stage::Killer {
             self.stage = Stage::BadNoisy;
-            if !self.list.is_empty()
-                && self.killer.is_present()
-                && td.board.is_legal(self.killer)
-                && self.list.iter().find(|e| e.mv == self.killer).is_some()
-            {
+            if self.killer.is_present() && td.board.is_legal(self.killer) {
                 return Some(self.killer);
             }
         }
