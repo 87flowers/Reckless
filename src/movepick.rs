@@ -12,12 +12,14 @@ pub enum Stage {
     GoodNoisy,
     GenerateQuiet,
     Quiet,
+    Killer,
     BadNoisy,
 }
 
 pub struct MovePicker {
     list: MoveList,
     tt_move: Move,
+    killer: Move,
     threshold: Option<i32>,
     stage: Stage,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
@@ -25,10 +27,11 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-    pub const fn new(tt_move: Move) -> Self {
+    pub const fn new(tt_move: Move, killer: Move) -> Self {
         Self {
             list: MoveList::new(),
             tt_move,
+            killer,
             threshold: None,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
@@ -40,6 +43,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            killer: Move::NULL,
             threshold: Some(threshold),
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -51,6 +55,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            killer: Move::NULL,
             threshold: None,
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -98,7 +103,7 @@ impl MovePicker {
             }
 
             if skip_quiets {
-                self.stage = Stage::BadNoisy;
+                self.stage = Stage::Killer;
             } else {
                 self.stage = Stage::GenerateQuiet;
             }
@@ -126,7 +131,18 @@ impl MovePicker {
                 }
             }
 
+            self.stage = Stage::Killer;
+        }
+
+        if self.stage == Stage::Killer {
             self.stage = Stage::BadNoisy;
+            if !self.list.is_empty()
+                && self.killer.is_present()
+                && td.board.is_legal(self.killer)
+                && self.list.iter().find(|e| e.mv == self.killer).is_some()
+            {
+                return Some(self.killer);
+            }
         }
 
         // Stage::BadNoisy

@@ -692,7 +692,7 @@ fn search<NODE: NodeType>(
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, td.stack[ply].killer);
     let mut skip_quiets = false;
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
@@ -785,7 +785,6 @@ fn search<NODE: NodeType>(
             reduction -= 65 * move_count;
             reduction -= 3183 * correction_value.abs() / 1024;
             reduction += 1300 * alpha_raises;
-            reduction -= 512 * (mv == td.stack[ply].killer) as i32;
 
             reduction += 600 * (is_valid(tt_score) && tt_score < alpha) as i32;
             reduction += 300 * (is_valid(tt_score) && tt_depth < depth) as i32;
