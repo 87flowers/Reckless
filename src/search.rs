@@ -966,6 +966,9 @@ fn search<NODE: NodeType>(
                 if score >= beta {
                     bound = Bound::Lower;
                     td.stack[ply].cutoff_count += 1;
+                    if is_quiet {
+                        td.stack[ply].killer = mv;
+                    }
                     break;
                 }
 
