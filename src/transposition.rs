@@ -90,11 +90,13 @@ impl TtDepth {
     pub const SOME: i32 = -1;
 
     fn from_tt(offset_depth: u8) -> i32 {
-        offset_depth as i32 - 1
+        // This converts 255 to -1.
+        offset_depth.wrapping_add(1) as i32 - 1
     }
 
     fn to_tt(depth: i32) -> u8 {
-        (depth + 1).clamp(u8::MIN as i32, u8::MAX as i32) as u8
+        // This changes -1 to 255.
+        depth as u8
     }
 }
 
