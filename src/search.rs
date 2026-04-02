@@ -790,8 +790,9 @@ fn search<NODE: NodeType>(
             reduction += 300 * (is_valid(tt_score) && tt_depth < depth) as i32;
 
             if is_quiet {
-                reduction += 1875;
+                reduction += 1700;
                 reduction -= 154 * history / 1024;
+                reduction += 1000 * tt_move.is_capture() as i32;
             } else {
                 reduction += 1355;
                 reduction -= 109 * history / 1024;
