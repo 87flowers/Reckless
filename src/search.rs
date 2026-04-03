@@ -491,6 +491,10 @@ fn search<NODE: NodeType>(
         depth -= 1;
     }
 
+    if !NODE::ROOT && td.stack[ply - 1].mv.is_null() && !in_check && !excluded && depth >= 2 && eval <= alpha {
+        depth -= 1;
+    }
+
     let potential_singularity = depth >= 5 + tt_pv as i32
         && tt_depth >= depth - 3
         && tt_bound != Bound::Upper
