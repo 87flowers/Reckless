@@ -786,7 +786,7 @@ fn search<NODE: NodeType>(
             reduction -= 65 * move_count;
             reduction -= 3183 * correction_value.abs() / 1024;
             reduction += 1300 * alpha_raises;
-            reduction -= 512 * (mv == td.stack[ply].killer) as i32;
+            reduction -= 256 * (mv == td.stack[ply].killer) as i32;
 
             reduction += 600 * (is_valid(tt_score) && tt_score <= alpha) as i32;
             reduction += 300 * (is_valid(tt_score) && tt_depth < depth) as i32;
@@ -857,6 +857,7 @@ fn search<NODE: NodeType>(
 
             reduction -= 57 * move_count;
             reduction -= 2513 * correction_value.abs() / 1024;
+            reduction -= 256 * (mv == td.stack[ply].killer) as i32;
 
             if is_quiet {
                 reduction += 1427;
@@ -963,6 +964,9 @@ fn search<NODE: NodeType>(
                 if score >= beta {
                     bound = Bound::Lower;
                     td.stack[ply].cutoff_count += 1;
+                    if is_quiet {
+                        td.stack[ply].killer = mv;
+                    }
                     break;
                 }
 
