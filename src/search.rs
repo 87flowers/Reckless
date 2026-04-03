@@ -699,6 +699,8 @@ fn search<NODE: NodeType>(
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
 
+    let tt_move_legal = tt_move.is_present() && td.board.is_legal(tt_move);
+
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.stack[ply].excluded {
             continue;
@@ -809,7 +811,7 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1762;
-                reduction += 2116 * tt_move.is_null() as i32;
+                reduction += 2116 * !tt_move_legal as i32;
             }
 
             if !improving {
@@ -871,7 +873,7 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1450;
-                reduction += 2200 * tt_move.is_null() as i32;
+                reduction += 2200 * !tt_move_legal as i32;
             }
 
             if !improving {
