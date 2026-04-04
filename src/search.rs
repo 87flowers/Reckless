@@ -380,16 +380,18 @@ fn search<NODE: NodeType>(
                 td.board.undo_move(tt_move);
                 next_entry
             }
-            && next_entry.depth > depth
+            && next_entry.depth > tt_depth
             && is_valid(next_entry.score)
-            && td.board.halfmove_clock() < 90
-            && match next_entry.bound {
-                Bound::Upper => next_entry.score <= -alpha,
-                Bound::Lower => next_entry.score >= -beta,
-                _ => true,
-            }
         {
-            return -next_entry.score;
+            tt_depth = next_entry.depth + 1;
+            tt_score = -next_entry.score;
+            tt_bound = match next_entry.bound {
+                Bound::None => Bound::None,
+                Bound::Upper => Bound::Lower,
+                Bound::Lower => Bound::Upper,
+                Bound::Exact => Bound::Exact,
+            };
+            tt_pv |= next_entry.tt_pv;
         }
     }
 
