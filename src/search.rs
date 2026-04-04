@@ -329,19 +329,23 @@ fn search<NODE: NodeType>(
     let mut depth = depth.min(MAX_PLY as i32 - 1);
 
     let hash = td.board.hash();
-    let entry = td.shared.tt.read(hash, td.board.halfmove_clock(), ply);
 
-    let mut tt_depth = 0;
-    let mut tt_move = Move::NULL;
-    let mut tt_score = Score::NONE;
-    let mut tt_bound = Bound::None;
+    let tt_depth;
+    let tt_move;
+    let tt_score;
+    let tt_raw_eval;
+    let tt_bound;
+
     let mut tt_pv = NODE::PV;
 
     // Search early TT cutoff
-    if let Some(entry) = &entry {
+    if let Some(entry) = td.shared.tt.read(hash, td.board.halfmove_clock(), ply)
+        && (depth < 7 || entry.mv.is_null() || td.board.is_legal(entry.mv))
+    {
         tt_depth = entry.depth;
         tt_move = entry.mv;
         tt_score = entry.score;
+        tt_raw_eval = entry.raw_eval;
         tt_bound = entry.bound;
         tt_pv |= entry.tt_pv;
 
@@ -354,7 +358,6 @@ fn search<NODE: NodeType>(
                 Bound::Lower => tt_score >= beta && (cut_node || depth > 5),
                 _ => true,
             }
-            && (depth < 7 || tt_move.is_null() || td.board.is_legal(tt_move))
         {
             if tt_move.is_quiet() && tt_score >= beta && td.stack[ply - 1].move_count < 4 {
                 let quiet_bonus = (185 * depth - 81).min(1806);
@@ -368,6 +371,12 @@ fn search<NODE: NodeType>(
                 return tt_score;
             }
         }
+    } else {
+        tt_depth = 0;
+        tt_move = Move::NULL;
+        tt_score = Score::NONE;
+        tt_raw_eval = Score::NONE;
+        tt_bound = Bound::None;
     }
 
     // Tablebases Probe
@@ -419,8 +428,8 @@ fn search<NODE: NodeType>(
     } else if excluded {
         raw_eval = Score::NONE;
         eval = td.stack[ply].eval;
-    } else if let Some(entry) = &entry {
-        raw_eval = if is_valid(entry.raw_eval) { entry.raw_eval } else { td.nnue.evaluate(&td.board) };
+    } else if is_valid(tt_raw_eval) {
+        raw_eval = tt_raw_eval;
         eval = correct_eval(td, raw_eval, correction_value);
     } else {
         raw_eval = td.nnue.evaluate(&td.board);
