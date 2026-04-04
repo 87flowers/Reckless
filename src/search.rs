@@ -354,6 +354,7 @@ fn search<NODE: NodeType>(
                 Bound::Lower => tt_score >= beta && (cut_node || depth > 5),
                 _ => true,
             }
+            && (depth < 7 || tt_move.is_null() || td.board.is_legal(tt_move))
         {
             if tt_move.is_quiet() && tt_score >= beta && td.stack[ply - 1].move_count < 4 {
                 let quiet_bonus = (185 * depth - 81).min(1806);
@@ -363,7 +364,7 @@ fn search<NODE: NodeType>(
                 update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
             }
 
-            if td.board.halfmove_clock() < 90 && (depth < 10 || tt_move.is_null() || td.board.is_legal(tt_move)) {
+            if td.board.halfmove_clock() < 90 {
                 return tt_score;
             }
         }
