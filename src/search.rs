@@ -384,8 +384,8 @@ fn search<NODE: NodeType>(
             && is_valid(next_entry.score)
             && td.board.halfmove_clock() < 90
             && match next_entry.bound {
-                Bound::Upper => -next_entry.score <= alpha,
-                Bound::Lower => -next_entry.score >= beta,
+                Bound::Upper => next_entry.score <= -alpha,
+                Bound::Lower => next_entry.score >= -beta,
                 _ => true,
             }
         {
