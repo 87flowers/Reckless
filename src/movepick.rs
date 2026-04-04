@@ -221,6 +221,7 @@ impl MovePicker {
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
             let pt = td.board.piece_on(mv.from()).piece_type();
+            let promo = mv.promotion_piece();
 
             entry.score = td.quiet_history.get(threats, side, mv)
                 + td.conthist(ply, 1, mv)
@@ -231,7 +232,8 @@ impl MovePicker {
                 + 10000 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 8000 * threatened[pt].contains(mv.to()) as i32
                 + 6000 * offense[pt].contains(mv.to()) as i32
-                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32;
+                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
+                - 5000 * (promo != None && promo != Some(PieceType::Knight)) as i32;
         }
     }
 }
