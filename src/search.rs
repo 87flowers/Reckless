@@ -363,7 +363,7 @@ fn search<NODE: NodeType>(
                 update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
             }
 
-            if td.board.halfmove_clock() < 90 {
+            if td.board.halfmove_clock() < 90 && (depth < 10 || tt_move.is_null() || td.board.is_legal(tt_move)) {
                 return tt_score;
             }
         }
