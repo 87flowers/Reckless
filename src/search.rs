@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use crate::{
+    board::NullBoardObserver,
     evaluation::correct_eval,
     movepick::{MovePicker, Stage},
     stack::Stack,
@@ -366,6 +367,29 @@ fn search<NODE: NodeType>(
             if td.board.halfmove_clock() < 90 {
                 return tt_score;
             }
+        }
+
+        if !NODE::PV
+            && !excluded
+            && tt_move.is_present()
+            && td.board.is_legal(tt_move)
+            && let Some(next_entry) = {
+                // TODO: Optimize
+                td.board.make_move(tt_move, &mut NullBoardObserver {});
+                let next_entry = td.shared.tt.read(td.board.hash(), td.board.halfmove_clock(), ply + 1);
+                td.board.undo_move(tt_move);
+                next_entry
+            }
+            && next_entry.depth > depth
+            && is_valid(next_entry.score)
+            && td.board.halfmove_clock() < 90
+            && match next_entry.bound {
+                Bound::Upper => -next_entry.score <= alpha,
+                Bound::Lower => -next_entry.score >= beta,
+                _ => true,
+            }
+        {
+            return -next_entry.score;
         }
     }
 
