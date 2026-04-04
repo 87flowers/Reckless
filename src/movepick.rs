@@ -167,9 +167,16 @@ impl MovePicker {
                 let mv = entry.mv;
                 let captured =
                     if entry.mv.is_en_passant() { PieceType::Pawn } else { td.board.piece_on(mv.to()).piece_type() };
+                let promo = mv.promotion_piece();
 
-                entry.score =
-                    16 * captured.value() + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured);
+                entry.score = 16 * captured.value()
+                    + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
+                    + match promo {
+                        None => 0,
+                        Some(PieceType::Queen) => 10,
+                        Some(PieceType::Knight) => -100,
+                        Some(_) => -10000,
+                    };
             }
         }
     }
@@ -233,7 +240,12 @@ impl MovePicker {
                 - 8000 * threatened[pt].contains(mv.to()) as i32
                 + 6000 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
-                - 5000 * (promo != None && promo != Some(PieceType::Knight)) as i32;
+                + match promo {
+                    None => 0,
+                    Some(PieceType::Queen) => 10,
+                    Some(PieceType::Knight) => -100,
+                    Some(_) => -10000,
+                };
         }
     }
 }
