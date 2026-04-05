@@ -1327,7 +1327,7 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, tt_error: i32, d
     let stm = td.board.side_to_move();
     let corrhist = td.corrhist();
     let tt_error = ((tt_error + 1) * 256).ilog2();
-    let bonus = (142 * depth as i64 * diff as i64 * tt_error as i64 / 2048).clamp(-4923, 3072) as i32;
+    let bonus = (142 * depth as i64 * diff as i64 * tt_error as i64 / 1024).clamp(-4923, 3072) as i32;
 
     corrhist.pawn.update(stm, td.board.pawn_key(), bonus);
     corrhist.minor.update(stm, td.board.minor_key(), bonus);
