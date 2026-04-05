@@ -218,17 +218,6 @@ impl MovePicker {
         }
         king_ring_ortho &= !threats;
 
-        let squares_blocking_our_bishop = {
-            let bishop = td.board.colored_pieces(side, PieceType::Bishop);
-            if bishop.is_multiple() || bishop.is_empty() {
-                Bitboard(0)
-            } else if !(bishop & Bitboard::LIGHT_SQUARES).is_empty() {
-                Bitboard::LIGHT_SQUARES
-            } else {
-                !Bitboard::LIGHT_SQUARES
-            }
-        };
-
         let squares_blocking_their_bishop = pawn_attacks_setwise(td.board.colored_pieces(side, PieceType::Pawn), side)
             & {
                 let bishop = td.board.colored_pieces(!side, PieceType::Bishop);
@@ -255,7 +244,6 @@ impl MovePicker {
                 - 8000 * threatened[pt].contains(mv.to()) as i32
                 + 6000 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
-                - 4000 * (pt == PieceType::Pawn && squares_blocking_our_bishop.contains(mv.to())) as i32
                 + 4000 * (pt == PieceType::Pawn && squares_blocking_their_bishop.contains(mv.to())) as i32;
         }
     }
