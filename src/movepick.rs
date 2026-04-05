@@ -210,6 +210,24 @@ impl MovePicker {
 
         let offense = [pawn_offense, n & !threats, b & !threats, Bitboard(0), q & !threats, Bitboard(0)];
 
+        let queen_offense = {
+            let prior_threats = if ply == 0 { Bitboard(0) } else { td.board.prior_threats() };
+            let their_queens = td.board.colored_pieces(!side, PieceType::Queen);
+
+            let p = pawn_attacks_setwise(their_queens, !side);
+
+            let mut n = Bitboard(0);
+            let mut b = Bitboard(0);
+            let mut r = Bitboard(0);
+            for queen in their_queens {
+                n |= knight_attacks(queen);
+                b |= bishop_attacks(queen, td.board.occupancies());
+                r |= rook_attacks(queen, td.board.occupancies());
+            }
+
+            [p & prior_threats, n & prior_threats, b & prior_threats, r & prior_threats, Bitboard(0)]
+        };
+
         // King ring diag attacks and ortho attacks
         let mut king_ring_ortho = Bitboard(0);
 
@@ -231,6 +249,7 @@ impl MovePicker {
                 + 10000 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 8000 * threatened[pt].contains(mv.to()) as i32
                 + 6000 * offense[pt].contains(mv.to()) as i32
+                + 3000 * queen_offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32;
         }
     }
