@@ -6,6 +6,13 @@ use crate::{
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
+pub enum Skip {
+    None,
+    Quiets,
+    NonCheckQuiets,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
     HashMove,
     GenerateNoisy,
@@ -62,7 +69,7 @@ impl MovePicker {
         self.stage
     }
 
-    pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
+    pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip: Skip, ply: isize) -> Option<Move> {
         if self.stage == Stage::HashMove {
             self.stage = Stage::GenerateNoisy;
 
@@ -97,7 +104,7 @@ impl MovePicker {
                 return Some(entry.mv);
             }
 
-            if skip_quiets {
+            if skip == Skip::Quiets {
                 self.stage = Stage::BadNoisy;
             } else {
                 self.stage = Stage::GenerateQuiet;
@@ -111,10 +118,13 @@ impl MovePicker {
         }
 
         if self.stage == Stage::Quiet {
-            if !skip_quiets {
+            if skip != Skip::Quiets {
                 while !self.list.is_empty() {
                     let entry = self.get_best_entry();
                     if entry.mv == self.tt_move {
+                        continue;
+                    }
+                    if skip == Skip::NonCheckQuiets && !td.board.is_direct_check(entry.mv) {
                         continue;
                     }
 

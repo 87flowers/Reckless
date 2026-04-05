@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use crate::{
     evaluation::correct_eval,
-    movepick::{MovePicker, Stage},
+    movepick::{MovePicker, Skip, Stage},
     stack::Stack,
     thread::{RootMove, Status, ThreadData},
     time::Limits,
@@ -599,7 +599,7 @@ fn search<NODE: NodeType>(
     {
         let mut move_picker = MovePicker::new_probcut(probcut_beta - eval);
 
-        while let Some(mv) = move_picker.next::<NODE>(td, true, ply) {
+        while let Some(mv) = move_picker.next::<NODE>(td, Skip::Quiets, ply) {
             if move_picker.stage() == Stage::BadNoisy {
                 break;
             }
@@ -695,11 +695,11 @@ fn search<NODE: NodeType>(
 
     let mut move_count = 0;
     let mut move_picker = MovePicker::new(tt_move);
-    let mut skip_quiets = false;
+    let mut skip_moves = Skip::None;
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
 
-    while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
+    while let Some(mv) = move_picker.next::<NODE>(td, skip_moves, ply) {
         if mv == td.stack[ply].excluded {
             continue;
         }
@@ -728,7 +728,7 @@ fn search<NODE: NodeType>(
                 && is_quiet
                 && move_count >= (3072 + 4 * improvement + 1536 * depth * depth + 64 * history / 1024) / 1024
             {
-                skip_quiets = true;
+                skip_moves = Skip::NonCheckQuiets;
                 continue;
             }
 
@@ -739,7 +739,7 @@ fn search<NODE: NodeType>(
                 if !is_decisive(best_score) && best_score < futility_value {
                     best_score = futility_value;
                 }
-                skip_quiets = true;
+                skip_moves = Skip::NonCheckQuiets;
                 continue;
             }
 
@@ -1209,8 +1209,13 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     let mut move_count = 0;
     let mut move_picker = MovePicker::new_qsearch();
 
-    let skip_quiets =
-        |best_score| !((in_check && is_loss(best_score)) || (tt_move.is_quiet() && tt_bound != Bound::Upper));
+    let skip_quiets = |best_score| {
+        if (in_check && is_loss(best_score)) || (tt_move.is_quiet() && tt_bound != Bound::Upper) {
+            Skip::None
+        } else {
+            Skip::Quiets
+        }
+    };
 
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets(best_score), ply) {
         move_count += 1;
