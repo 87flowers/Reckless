@@ -336,6 +336,7 @@ fn search<NODE: NodeType>(
     let mut tt_score = Score::NONE;
     let mut tt_bound = Bound::None;
     let mut tt_pv = NODE::PV;
+    let mut tt_error = 0;
 
     // Search early TT cutoff
     if let Some(entry) = &entry {
@@ -366,6 +367,19 @@ fn search<NODE: NodeType>(
             if td.board.halfmove_clock() < 90 {
                 return tt_score;
             }
+        }
+
+        if !excluded
+            && is_valid(tt_score)
+            && !is_decisive(tt_score)
+            && is_valid(entry.raw_eval)
+            && match tt_bound {
+                Bound::Upper => tt_score <= entry.raw_eval,
+                Bound::Lower => tt_score >= entry.raw_eval,
+                _ => true,
+            }
+        {
+            tt_error = (tt_score - entry.raw_eval).abs();
         }
     }
 
@@ -1087,7 +1101,7 @@ fn search<NODE: NodeType>(
         || (bound == Bound::Upper && best_score >= eval)
         || (bound == Bound::Lower && best_score <= eval))
     {
-        update_correction_histories(td, depth, best_score - eval, ply);
+        update_correction_histories(td, depth, tt_error, best_score - eval, ply);
     }
 
     debug_assert!(alpha < beta);
@@ -1309,10 +1323,11 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
         / 77
 }
 
-fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: isize) {
+fn update_correction_histories(td: &mut ThreadData, depth: i32, tt_error: i32, diff: i32, ply: isize) {
     let stm = td.board.side_to_move();
     let corrhist = td.corrhist();
-    let bonus = (142 * depth * diff / 128).clamp(-4923, 3072);
+    let tt_error = ((tt_error + 1) * 256).ilog2();
+    let bonus = (142 * depth as i64 * diff as i64 * tt_error as i64 / 2048).clamp(-4923, 3072) as i32;
 
     corrhist.pawn.update(stm, td.board.pawn_key(), bonus);
     corrhist.minor.update(stm, td.board.minor_key(), bonus);
