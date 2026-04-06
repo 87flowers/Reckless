@@ -154,6 +154,10 @@ impl MovePicker {
 
     fn score_noisy(&mut self, td: &ThreadData) {
         let threats = td.board.all_threats();
+        let side = td.board.side_to_move();
+
+        let discovery = td.board.potential_discovery(side);
+        let their_king = td.board.king_square(!side);
 
         if td.board.in_check() {
             for entry in self.list.iter_mut() {
@@ -168,8 +172,10 @@ impl MovePicker {
                 let captured =
                     if entry.mv.is_en_passant() { PieceType::Pawn } else { td.board.piece_on(mv.to()).piece_type() };
 
-                entry.score =
-                    16 * captured.value() + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured);
+                entry.score = 16 * captured.value()
+                    + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
+                    + 4000
+                        * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
             }
         }
     }
@@ -222,10 +228,7 @@ impl MovePicker {
             & td.board.pieces(PieceType::Pawn)
             & (Bitboard::PAWN_HOMES[side] | Bitboard::THIRD_RANK[side]);
 
-        let discovery = td.board.potential_discovery(side);
-
         let our_king = td.board.king_square(side);
-        let their_king = td.board.king_square(!side);
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
@@ -240,8 +243,7 @@ impl MovePicker {
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
-                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
-                + 9000 * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
+                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32;
 
             if Bitboard::HOME_ROWS[side].contains(our_king) && wall_pawns.contains(mv.from()) {
                 entry.score -= 4000;
