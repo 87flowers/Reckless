@@ -219,7 +219,7 @@ impl MovePicker {
         king_ring_ortho &= !threats;
 
         // don't move king wall pawns
-        let wall_pawns_malus = td.board.phase() as i32 * 200;
+        let wall_pawns_malus = td.board.phase() as i32 * 367;
         let wall_pawns =
             king_attacks(td.board.king_square(side)) & td.board.pieces(PieceType::Pawn) & Bitboard::PAWN_HOMES[side];
 
