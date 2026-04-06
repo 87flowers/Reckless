@@ -240,8 +240,8 @@ impl MovePicker {
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
-                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32;
-            // + 9000 * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
+                + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
+                + 9000 * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
 
             if Bitboard::HOME_ROWS[side].contains(our_king) && wall_pawns.contains(mv.from()) {
                 entry.score -= 4000;
