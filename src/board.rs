@@ -197,6 +197,13 @@ impl Board {
         (self.pieces(PieceType::Pawn) | self.pieces(PieceType::King)) != self.occupancies()
     }
 
+    pub fn phase(&self) -> usize {
+        ((self.pieces(PieceType::Knight) | self.pieces(PieceType::Bishop)).popcount()
+            + self.pieces(PieceType::Rook).popcount() * 2
+            + self.pieces(PieceType::Queen).popcount() * 4)
+            .clamp(0, 24)
+    }
+
     pub fn advance_fullmove_counter(&mut self) {
         self.fullmove_number += self.side_to_move() as usize;
     }
