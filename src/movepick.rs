@@ -219,7 +219,7 @@ impl MovePicker {
         king_ring_ortho &= !threats;
 
         // don't move king wall pawns
-        let wall_pawns_malus = (td.board.occupancies().popcount().clamp(8, 24) - 8) * 250;
+        let wall_pawns_malus = (td.board.occupancies().popcount().clamp(8, 24) - 8) * 400;
         let wall_pawns =
             king_attacks(td.board.king_square(side)) & td.board.pieces(PieceType::Pawn) & Bitboard::PAWN_HOMES[side];
 
