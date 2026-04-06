@@ -2,7 +2,7 @@ use crate::{
     lookup::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks_setwise, rook_attacks},
     search::NodeType,
     thread::ThreadData,
-    types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
+    types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType, Rank},
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
@@ -219,8 +219,19 @@ impl MovePicker {
         king_ring_ortho &= !threats;
 
         // don't move king wall pawns
-        let wall_pawns =
-            king_attacks(td.board.king_square(side)) & td.board.pieces(PieceType::Pawn) & Bitboard::PAWN_HOMES[side];
+        let near_king_files: [Bitboard; 8] = [
+            Bitboard(0x0707070707070707),
+            Bitboard(0x0707070707070707),
+            Bitboard(0x0F0F0F0F0F0F0F0F),
+            Bitboard(0x1C1C1C1C1C1C1C1C),
+            Bitboard(0x3838383838383838),
+            Bitboard(0xF0F0F0F0F0F0F0F0),
+            Bitboard(0xC0C0C0C0C0C0C0C0),
+            Bitboard(0xC0C0C0C0C0C0C0C0),
+        ];
+        let wall_pawns = near_king_files[td.board.king_square(side).file() as usize]
+            & td.board.pieces(PieceType::Pawn)
+            & (Bitboard::PAWN_HOMES[side] | Bitboard::THIRD_RANK[side]);
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
@@ -237,7 +248,7 @@ impl MovePicker {
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32;
 
-            if Bitboard::HOME_ROWS[side].contains(td.board.king_square(side)) && wall_pawns.contains(mv.from()) {
+            if td.board.king_square(side).relative_rank(side) < Rank::R3 && wall_pawns.contains(mv.from()) {
                 entry.score -= 4000;
             }
         }

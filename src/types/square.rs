@@ -46,6 +46,13 @@ impl Square {
         unsafe { std::mem::transmute(self as u8 >> 3) }
     }
 
+    pub const fn relative_rank(self, color: Color) -> Rank {
+        match color {
+            Color::White => self.rank(),
+            Color::Black => self.flip_rank().rank(),
+        }
+    }
+
     pub const fn shift(self, offset: i8) -> Self {
         let value = self as i8 + offset;
         debug_assert!(0 <= value && value < Self::NUM as i8);
