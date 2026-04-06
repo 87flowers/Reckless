@@ -36,6 +36,7 @@ struct InternalState {
     all_threats: Bitboard,
     pinned: [Bitboard; Color::NUM],
     pinners: [Bitboard; Color::NUM],
+    potential_discovery: [Bitboard; Color::NUM],
     checkers: Bitboard,
     checking_squares: [Bitboard; PieceType::NUM],
 }
@@ -98,6 +99,10 @@ impl Board {
 
     pub const fn pinners(&self, color: Color) -> Bitboard {
         self.state.pinners[color as usize]
+    }
+
+    pub const fn potential_discovery(&self, color: Color) -> Bitboard {
+        self.state.potential_discovery[color as usize]
     }
 
     pub const fn checking_squares(&self, pt: PieceType) -> Bitboard {
@@ -504,21 +509,26 @@ impl Board {
         for color in [Color::White, Color::Black] {
             let king = self.king_square(color);
 
-            let diagonal = diagonal & bishop_attacks(king, self.colors(!color)) & self.colors(!color);
-            let orthogonal = orthogonal & rook_attacks(king, self.colors(!color)) & self.colors(!color);
+            let closest_diagonal = bishop_attacks(king, self.occupancies()) & self.occupancies();
+            let closest_orthogonal = rook_attacks(king, self.occupancies()) & self.occupancies();
+            let attacker_diagonal =
+                bishop_attacks(king, self.occupancies() & !closest_diagonal) & diagonal & self.colors(!color);
+            let attacker_orthogonal =
+                rook_attacks(king, self.occupancies() & !closest_orthogonal) & orthogonal & self.colors(!color);
 
-            for square in diagonal | orthogonal {
-                let blockers = between(king, square) & self.colors(color);
-                match blockers.popcount() {
-                    0 => {
-                        debug_assert_eq!(color, stm);
-                        self.state.checkers.set(square);
-                    }
-                    1 => {
-                        self.state.pinners[!color].set(square);
-                        self.state.pinned[color] |= blockers;
-                    }
-                    _ => (),
+            if color == stm {
+                self.state.checkers |=
+                    self.colors(!color) & ((closest_diagonal & diagonal) | (closest_orthogonal & orthogonal));
+            }
+
+            let closest = closest_diagonal | closest_orthogonal;
+            for square in attacker_diagonal | attacker_orthogonal {
+                let blocker = between(king, square) & closest;
+                if (blocker & self.colors(!color)).is_empty() {
+                    self.state.pinners[!color].set(square);
+                    self.state.pinned[color] |= blocker;
+                } else {
+                    self.state.potential_discovery[!color] |= blocker;
                 }
             }
         }
