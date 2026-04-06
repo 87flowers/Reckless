@@ -220,9 +220,11 @@ impl MovePicker {
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
-            let pt = td.board.piece_on(mv.from()).piece_type();
+            let piece = td.board.piece_on(mv.from());
+            let pt = piece.piece_type();
 
             entry.score = td.quiet_history.get(threats, side, mv)
+                + td.pawn_history.get(td.board.pawn_key(), piece, mv.to())
                 + td.conthist(ply, 1, mv)
                 + td.conthist(ply, 2, mv)
                 + td.conthist(ply, 4, mv)

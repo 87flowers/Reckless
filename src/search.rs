@@ -357,9 +357,11 @@ fn search<NODE: NodeType>(
         {
             if tt_move.is_quiet() && tt_score >= beta && td.stack[ply - 1].move_count < 4 {
                 let quiet_bonus = (185 * depth - 81).min(1806);
+                let pawn_bonus = (185 * depth - 81).min(1806);
                 let cont_bonus = (108 * depth - 56).min(1365);
 
                 td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
+                td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(tt_move), tt_move.to(), pawn_bonus);
                 update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
             }
 
@@ -469,8 +471,10 @@ fn search<NODE: NodeType>(
     if !NODE::ROOT && !in_check && !excluded && td.stack[ply - 1].mv.is_quiet() && is_valid(td.stack[ply - 1].eval) {
         let value = 819 * (-(eval + td.stack[ply - 1].eval)) / 128;
         let bonus = value.clamp(-124, 312);
+        let mv = td.stack[ply - 1].mv;
 
-        td.quiet_history.update(td.board.prior_threats(), !stm, td.stack[ply - 1].mv, bonus);
+        td.quiet_history.update(td.board.prior_threats(), !stm, mv, bonus);
+        td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(mv), mv.to(), bonus);
     }
 
     // Hindsight reductions
@@ -996,6 +1000,9 @@ fn search<NODE: NodeType>(
         let quiet_bonus = (172 * depth).min(1459) - 78 - 54 * cut_node as i32;
         let quiet_malus = (144 * depth).min(1064) - 45 - 39 * quiet_moves.len() as i32;
 
+        let pawn_bonus = (172 * depth).min(1459) - 78 - 54 * cut_node as i32;
+        let pawn_malus = (144 * depth).min(1064) - 45 - 39 * quiet_moves.len() as i32;
+
         let cont_bonus = (108 * depth).min(977) - 67 - 52 * cut_node as i32;
         let cont_malus = (352 * depth).min(868) - 47 - 19 * quiet_moves.len() as i32;
 
@@ -1009,10 +1016,12 @@ fn search<NODE: NodeType>(
             );
         } else {
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
+            td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(best_move), best_move.to(), pawn_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
 
             for &mv in quiet_moves.iter() {
                 td.quiet_history.update(td.board.all_threats(), stm, mv, -quiet_malus);
+                td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(mv), mv.to(), -pawn_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
             }
         }
@@ -1046,6 +1055,12 @@ fn search<NODE: NodeType>(
             let scaled_bonus = factor * (153 * depth - 34).min(2474) / 128;
 
             td.quiet_history.update(td.board.prior_threats(), !stm, prior_move, scaled_bonus);
+            td.pawn_history.update(
+                td.board.pawn_key(),
+                td.board.moved_piece(prior_move),
+                prior_move.to(),
+                scaled_bonus,
+            );
 
             let entry = &td.stack[ply - 2];
             if entry.mv.is_present() {
