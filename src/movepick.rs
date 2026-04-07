@@ -174,7 +174,7 @@ impl MovePicker {
 
                 entry.score = 16 * captured.value()
                     + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
-                    + 7000
+                    + 2000
                         * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
             }
         }
