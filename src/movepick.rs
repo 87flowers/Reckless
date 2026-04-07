@@ -85,7 +85,9 @@ impl MovePicker {
                 }
 
                 let threshold = self.threshold.unwrap_or_else(|| -entry.score / 45 + 111);
-                if !td.board.see(entry.mv, threshold) {
+                if !td.board.potential_discovery(td.board.side_to_move()).contains(entry.mv.from())
+                    && !td.board.see(entry.mv, threshold)
+                {
                     self.bad_noisy.push(entry.mv);
                     continue;
                 }
@@ -174,7 +176,7 @@ impl MovePicker {
 
                 entry.score = 16 * captured.value()
                     + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
-                    + 7000
+                    + 4000
                         * (discovery.contains(mv.from()) && !ray_pass(their_king, mv.from()).contains(mv.to())) as i32;
             }
         }
