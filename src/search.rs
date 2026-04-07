@@ -505,7 +505,8 @@ fn search<NODE: NodeType>(
         improvement = eval - td.stack[ply - 4].eval;
     }
 
-    let improving = improvement > 0;
+    let mut improving = improvement > 0;
+    improving |= !excluded && tt_depth >= depth && is_valid(tt_score) && tt_score > alpha && tt_bound != Bound::Upper;
 
     // Razoring
     if !NODE::PV
