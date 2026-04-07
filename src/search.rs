@@ -824,6 +824,10 @@ fn search<NODE: NodeType>(
                 reduction += 1515;
             }
 
+            if !tt_pv && best_move.is_null() && move_count > 3 {
+                reduction += 50 * move_count.ilog2() as i32;
+            }
+
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 485 {
                 reduction += 129;
             }
