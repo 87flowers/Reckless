@@ -363,6 +363,14 @@ fn search<NODE: NodeType>(
                 update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
             }
 
+            if tt_move.is_quiet() && tt_score <= alpha {
+                let quiet_malus = (80 * depth - 20).min(800);
+                let cont_malus = (65 * depth - 20).min(600);
+
+                td.quiet_history.update(td.board.all_threats(), stm, tt_move, -quiet_malus);
+                update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), -cont_malus);
+            }
+
             if td.board.halfmove_clock() < 90 {
                 return tt_score;
             }
