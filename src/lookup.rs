@@ -156,6 +156,18 @@ pub fn pawn_attacks_setwise(bb: Bitboard, color: Color) -> Bitboard {
     right_attacks | left_attacks
 }
 
+pub fn pawn_attacks_setwise_both(bb: Bitboard, color: Color) -> Bitboard {
+    let (up_right, up_left) = match color {
+        Color::White => (9, 7),
+        Color::Black => (-7, -9),
+    };
+
+    let right_attacks = (bb & !Bitboard::file(File::H)).shift(up_right);
+    let left_attacks = (bb & !Bitboard::file(File::A)).shift(up_left);
+
+    right_attacks & left_attacks
+}
+
 pub fn pawn_attacks(square: Square, color: Color) -> Bitboard {
     unsafe {
         match color {

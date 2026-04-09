@@ -1,5 +1,7 @@
 use crate::{
-    lookup::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks_setwise, rook_attacks},
+    lookup::{
+        bishop_attacks, king_attacks, knight_attacks, pawn_attacks_setwise, pawn_attacks_setwise_both, rook_attacks,
+    },
     search::NodeType,
     thread::ThreadData,
     types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
@@ -189,30 +191,58 @@ impl MovePicker {
         let escape = [0, 7768, 8218, 13424, 20208, 0];
 
         // safe squares where we can attack an opponent piece
-        let offense = {
-            let mut n = Bitboard(0);
-            let mut b = Bitboard(0);
-            let mut q = Bitboard(0);
-            let pawn_offense = pawn_attacks_setwise(td.board.colors(!side), !side) & !threats;
+        let (offense, forks) = {
+            let mut knight = Bitboard(0);
+            let mut knight2 = Bitboard(0);
+            let mut bishop = Bitboard(0);
+            let mut bishop2 = Bitboard(0);
+            let mut queen = Bitboard(0);
+            let mut queen2 = Bitboard(0);
 
             for square in td.board.colored_pieces(!side, PieceType::Bishop) & !threats {
-                n |= knight_attacks(square);
-                q |= rook_attacks(square, td.board.occupancies());
+                let n = knight_attacks(square);
+                let r = rook_attacks(square, td.board.occupancies());
+
+                knight2 |= knight & n;
+                knight |= n;
+                queen2 |= queen & r;
+                queen |= r;
             }
 
             for square in td.board.colored_pieces(!side, PieceType::Rook) {
-                n |= knight_attacks(square);
-                b |= bishop_attacks(square, td.board.occupancies());
+                let n = knight_attacks(square);
+                let b = bishop_attacks(square, td.board.occupancies());
+
+                knight2 |= knight & n;
+                knight |= n;
+                bishop2 |= bishop & b;
+                bishop |= b;
 
                 if !threats.contains(square) {
-                    q |= bishop_attacks(square, td.board.occupancies());
+                    queen2 |= queen & b;
+                    queen |= b;
                 }
             }
             for square in td.board.colored_pieces(!side, PieceType::Queen) {
-                n |= knight_attacks(square);
+                let n = knight_attacks(square);
+
+                knight |= n;
+                knight2 |= knight & n;
             }
 
-            [pawn_offense, n & !threats, b & !threats, Bitboard(0), q & !threats, Bitboard(0)]
+            let pawn = pawn_attacks_setwise(td.board.colors(!side), !side) & !threats;
+            let pawn2 = pawn_attacks_setwise_both(td.board.colors(!side), !side) & !threats;
+            let knight = knight & !threats;
+            let knight2 = knight2 & !threats;
+            let bishop = bishop & !threats;
+            let bishop2 = bishop2 & !threats;
+            let queen = queen & !threats;
+            let queen2 = queen2 & !threats;
+
+            (
+                [pawn, knight, bishop, Bitboard(0), queen, Bitboard(0)],
+                [pawn2, knight2, bishop2, Bitboard(0), queen2, Bitboard(0)],
+            )
         };
 
         // King ring diag attacks and ortho attacks
@@ -245,6 +275,7 @@ impl MovePicker {
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
+                + 2000 * forks[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
                 - 4000 * wall_pawns.contains(mv.from()) as i32;
         }
