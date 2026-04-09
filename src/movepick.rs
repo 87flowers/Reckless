@@ -273,7 +273,7 @@ impl MovePicker {
                 + 2000
                     * (queen_pinning[pt].contains(mv.to())
                         && !queen_pinning[pt].contains(mv.from())
-                        && !threatened[pt].contains(mv.to())) as i32;
+                        && offense[pt].contains(mv.to())) as i32;
         }
     }
 }
