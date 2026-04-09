@@ -1188,6 +1188,11 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
         }
     }
 
+    // Delta pruning
+    if !NODE::PV && !in_check && !is_decisive(alpha) && best_score < alpha - 900 {
+        return best_score;
+    }
+
     // Stand Pat
     if best_score >= beta {
         if !is_decisive(best_score) && !is_decisive(beta) {
