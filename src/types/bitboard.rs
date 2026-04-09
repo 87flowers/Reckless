@@ -29,6 +29,10 @@ impl Bitboard {
         self.0 == 0
     }
 
+    pub const fn is_single(self) -> bool {
+        self.0 != 0 && self.0 & (self.0 - 1) == 0
+    }
+
     pub const fn is_multiple(self) -> bool {
         self.0 != 0 && self.0 & (self.0 - 1) != 0
     }

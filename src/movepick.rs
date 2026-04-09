@@ -232,6 +232,29 @@ impl MovePicker {
             Bitboard(0)
         };
 
+        // queen relative pin
+        let queen_pinning = if td.board.colored_pieces(!side, PieceType::Queen).is_single() {
+            let queen = td.board.colored_pieces(!side, PieceType::Queen).lsb();
+
+            let occupied = td.board.occupancies();
+
+            let orthogonal_ray1 = rook_attacks(queen, occupied);
+            let diagonal_ray1 = bishop_attacks(queen, occupied);
+
+            let orthogonal_pinnable = orthogonal_ray1 & td.board.colors(!side);
+            let diagonal_pinnable = diagonal_ray1 & td.board.colors(!side);
+
+            let orthogonal_ray2 = rook_attacks(queen, occupied & !orthogonal_pinnable);
+            let diagonal_ray2 = bishop_attacks(queen, occupied & !diagonal_pinnable);
+
+            let orthogonal_ray = orthogonal_ray2 & !orthogonal_ray1;
+            let diagonal_ray = diagonal_ray2 & !diagonal_ray1;
+
+            [Bitboard(0), Bitboard(0), diagonal_ray, orthogonal_ray, diagonal_ray | orthogonal_ray, Bitboard(0)]
+        } else {
+            [Bitboard(0); 6]
+        };
+
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
             let pt = td.board.piece_on(mv.from()).piece_type();
@@ -246,7 +269,8 @@ impl MovePicker {
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
-                - 4000 * wall_pawns.contains(mv.from()) as i32;
+                - 4000 * wall_pawns.contains(mv.from()) as i32
+                + 3000 * queen_pinning[pt].contains(mv.to()) as i32;
         }
     }
 }
