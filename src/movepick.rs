@@ -270,7 +270,7 @@ impl MovePicker {
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
                 - 4000 * wall_pawns.contains(mv.from()) as i32
-                + 7000
+                + 2000
                     * (queen_pinning[pt].contains(mv.to())
                         && !queen_pinning[pt].contains(mv.from())
                         && !threatened[pt].contains(mv.to())) as i32;
