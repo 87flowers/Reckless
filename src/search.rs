@@ -646,6 +646,7 @@ fn search<NODE: NodeType>(
 
     // Singular Extensions (SE)
     let mut extension = 0;
+    let mut only_move = false;
 
     if !NODE::ROOT && !excluded && potential_singularity {
         debug_assert!(is_valid(tt_score));
@@ -672,6 +673,8 @@ fn search<NODE: NodeType>(
             extension = 1;
             extension += (score < singular_beta - double_margin) as i32;
             extension += (score < singular_beta - triple_margin) as i32;
+
+            only_move = is_loss(score);
         }
         // Multi-Cut
         else if score >= beta && !is_decisive(score) {
@@ -783,6 +786,7 @@ fn search<NODE: NodeType>(
             reduction -= 68 * move_count;
             reduction -= 3297 * correction_value.abs() / 1024;
             reduction += 1306 * alpha_raises;
+            reduction += 2048 * only_move as i32;
 
             reduction += 546 * (is_valid(tt_score) && tt_score <= alpha) as i32;
             reduction += 322 * (is_valid(tt_score) && tt_depth < depth) as i32;
