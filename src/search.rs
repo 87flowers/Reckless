@@ -1052,12 +1052,7 @@ fn search<NODE: NodeType>(
             let entry = &td.stack[ply - 2];
             if entry.mv.is_present() {
                 let bonus = (159 * depth - 39).min(1160);
-                td.continuation_history_odd[0].update(
-                    entry.conthisto[0],
-                    td.stack[ply - 1].piece,
-                    prior_move.to(),
-                    bonus,
-                );
+                td.continuation_history_even.update(entry.conthiste, td.stack[ply - 1].piece, prior_move.to(), bonus);
             }
         } else if prior_move.is_noisy() {
             let captured = td.board.captured_piece().unwrap_or_default().piece_type();
