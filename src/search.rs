@@ -360,6 +360,7 @@ fn search<NODE: NodeType>(
                 let cont_bonus = (114 * depth - 57).min(1284);
 
                 td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
+                td.pawn_history.update(td.board.pawn_key(), stm, tt_move, quiet_bonus);
                 update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
             }
 
@@ -470,6 +471,7 @@ fn search<NODE: NodeType>(
         let bonus = value.clamp(-133, 348);
 
         td.quiet_history.update(td.board.prior_threats(), !stm, td.stack[ply - 1].mv, bonus);
+        td.pawn_history.update(td.board.pawn_key(), !stm, td.stack[ply - 1].mv, bonus);
     }
 
     // Hindsight reductions
@@ -1011,10 +1013,12 @@ fn search<NODE: NodeType>(
             );
         } else {
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
+            td.pawn_history.update(td.board.pawn_key(), stm, best_move, quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
 
             for &mv in quiet_moves.iter() {
                 td.quiet_history.update(td.board.all_threats(), stm, mv, -quiet_malus);
+                td.pawn_history.update(td.board.pawn_key(), stm, mv, -quiet_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
             }
         }
@@ -1047,6 +1051,7 @@ fn search<NODE: NodeType>(
             let scaled_bonus = factor * (165 * depth - 35).min(2467) / 128;
 
             td.quiet_history.update(td.board.prior_threats(), !stm, prior_move, scaled_bonus);
+            td.pawn_history.update(td.board.pawn_key(), !stm, prior_move, scaled_bonus);
 
             let entry = &td.stack[ply - 2];
             if entry.mv.is_present() {
@@ -1262,6 +1267,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
                         );
                     } else {
                         td.quiet_history.update(td.board.all_threats(), stm, best_move, bonus);
+                        td.pawn_history.update(td.board.pawn_key(), stm, best_move, bonus);
                     }
 
                     break;

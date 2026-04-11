@@ -5,7 +5,9 @@ use std::sync::{
 
 use crate::{
     board::Board,
-    history::{ContinuationCorrectionHistory, ContinuationHistory, CorrectionHistory, NoisyHistory, QuietHistory},
+    history::{
+        ContinuationCorrectionHistory, ContinuationHistory, CorrectionHistory, HashHistory, NoisyHistory, QuietHistory,
+    },
     nnue::Network,
     numa::{NumaReplicator, NumaValue},
     stack::Stack,
@@ -139,6 +141,7 @@ pub struct ThreadData {
     pub quiet_history: QuietHistory,
     pub continuation_history: ContinuationHistory,
     pub continuation_corrhist: ContinuationCorrectionHistory,
+    pub pawn_history: HashHistory,
     pub best_move_changes: usize,
     pub optimism: [i32; 2],
     pub root_depth: i32,
@@ -170,6 +173,7 @@ impl ThreadData {
             quiet_history: QuietHistory::default(),
             continuation_history: ContinuationHistory::default(),
             continuation_corrhist: ContinuationCorrectionHistory::default(),
+            pawn_history: HashHistory::default(),
             best_move_changes: 0,
             optimism: [0; 2],
             root_depth: 0,

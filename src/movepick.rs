@@ -245,6 +245,7 @@ impl MovePicker {
                 + td.conthist(ply, 2, mv)
                 + td.conthist(ply, 4, mv)
                 + td.conthist(ply, 6, mv)
+                + td.pawn_history.get(td.board.pawn_key(), side, mv)
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
