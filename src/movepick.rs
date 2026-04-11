@@ -243,6 +243,7 @@ impl MovePicker {
             entry.score = 2048 * td.quiet_history.get(threats, side, mv) / 1024
                 + 1536 * td.conthisto(ply, 1, mv) / 1024
                 + td.conthiste(ply, 2, mv)
+                + td.conthisto(ply, 3, mv)
                 + td.conthiste(ply, 4, mv)
                 + td.conthiste(ply, 6, mv)
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32

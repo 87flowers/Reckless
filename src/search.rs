@@ -1355,7 +1355,7 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
         }
     }
 
-    for offset in [1] {
+    for offset in [1, 3] {
         let entry = &td.stack[ply - offset];
         if entry.mv.is_present() {
             let i = offset as usize / 2;
