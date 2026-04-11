@@ -552,7 +552,8 @@ fn search<NODE: NodeType>(
 
         let r = (5335 + 260 * depth + 493 * (estimated_score - beta).clamp(0, 1003) / 128) / 1024;
 
-        td.stack[ply].conthist = td.stack.sentinel().conthist;
+        td.stack[ply].conthiste = td.stack.sentinel().conthiste;
+        td.stack[ply].conthisto = td.stack.sentinel().conthisto;
         td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
@@ -713,7 +714,9 @@ fn search<NODE: NodeType>(
         let is_quiet = mv.is_quiet();
 
         let history = if is_quiet {
-            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
+            td.quiet_history.get(td.board.all_threats(), stm, mv)
+                + 1536 * (td.conthiste(ply, 1, mv) + td.conthisto(ply, 1, mv)) / 2048
+                + td.conthiste(ply, 2, mv)
         } else {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
@@ -1051,7 +1054,8 @@ fn search<NODE: NodeType>(
             let entry = &td.stack[ply - 2];
             if entry.mv.is_present() {
                 let bonus = (159 * depth - 39).min(1160);
-                td.continuation_history.update(entry.conthist, td.stack[ply - 1].piece, prior_move.to(), bonus);
+                td.continuation_history_even.update(entry.conthiste, td.stack[ply - 1].piece, prior_move.to(), bonus);
+                td.continuation_history_odd.update(entry.conthisto, td.stack[ply - 1].piece, prior_move.to(), bonus);
             }
         } else if prior_move.is_noisy() {
             let captured = td.board.captured_piece().unwrap_or_default().piece_type();
@@ -1345,18 +1349,28 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
     for offset in [1, 2, 4, 6] {
         let entry = &td.stack[ply - offset];
         if entry.mv.is_present() {
-            td.continuation_history.update(entry.conthist, piece, sq, bonus);
+            td.continuation_history_even.update(entry.conthiste, piece, sq, bonus);
+        }
+    }
+    for offset in [1, 3] {
+        let entry = &td.stack[ply - offset];
+        if entry.mv.is_present() {
+            td.continuation_history_odd.update(entry.conthisto, piece, sq, bonus);
         }
     }
 }
 
 fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
+    let piece = td.board.moved_piece(mv);
+
     td.stack[ply].mv = mv;
-    td.stack[ply].piece = td.board.moved_piece(mv);
-    td.stack[ply].conthist =
-        td.continuation_history.subtable_ptr(td.board.in_check(), mv.is_noisy(), td.board.moved_piece(mv), mv.to());
+    td.stack[ply].piece = piece;
+    td.stack[ply].conthiste =
+        td.continuation_history_even.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
+    td.stack[ply].conthisto =
+        td.continuation_history_odd.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
     td.stack[ply].contcorrhist =
-        td.continuation_corrhist.subtable_ptr(td.board.in_check(), mv.is_noisy(), td.board.moved_piece(mv), mv.to());
+        td.continuation_corrhist.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
 
     td.shared.nodes.increment(td.id);
 

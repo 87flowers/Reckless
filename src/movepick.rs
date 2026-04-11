@@ -241,10 +241,11 @@ impl MovePicker {
             let pt = td.board.piece_on(mv.from()).piece_type();
 
             entry.score = 2048 * td.quiet_history.get(threats, side, mv) / 1024
-                + 1536 * td.conthist(ply, 1, mv) / 1024
-                + td.conthist(ply, 2, mv)
-                + td.conthist(ply, 4, mv)
-                + td.conthist(ply, 6, mv)
+                + 1536 * (td.conthiste(ply, 1, mv) + td.conthisto(ply, 1, mv)) / 2048
+                + td.conthiste(ply, 2, mv)
+                + td.conthisto(ply, 3, mv)
+                + td.conthiste(ply, 4, mv)
+                + td.conthiste(ply, 6, mv)
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
