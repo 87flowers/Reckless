@@ -714,9 +714,7 @@ fn search<NODE: NodeType>(
         let is_quiet = mv.is_quiet();
 
         let history = if is_quiet {
-            td.quiet_history.get(td.board.all_threats(), stm, mv)
-                + 1536 * (td.conthiste(ply, 1, mv) + td.conthisto(ply, 1, mv)) / 2048
-                + td.conthiste(ply, 2, mv)
+            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthiste(ply, 1, mv) + td.conthiste(ply, 2, mv)
         } else {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
