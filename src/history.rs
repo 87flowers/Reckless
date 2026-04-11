@@ -191,7 +191,7 @@ impl Default for ContinuationCorrectionHistory {
 }
 
 pub struct ContinuationHistory {
-    // [in_check][capture][piece][to][piece][to]
+    // [in_check][capture][piece_type][to][piece][to]
     entries: Box<ContinuationHistoryType>,
 }
 
