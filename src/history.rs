@@ -8,7 +8,9 @@ use crate::{
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 13];
 type ContinuationCorrectionHistoryType = [[[[PieceToHistory<i16>; 64]; 13]; 2]; 2];
-type ContinuationHistoryType = [[[[PieceToHistory<i16>; 64]; 13]; 2]; 2];
+
+pub type ContinuationHistorySubtable = PieceToHistory<i16>;
+type ContinuationHistoryType = [[[[ContinuationHistorySubtable; 64]; 13]; 2]; 2];
 
 fn apply_bonus<const MAX: i32>(entry: &mut i16, bonus: i32) {
     let bonus = bonus.clamp(-MAX, MAX);
@@ -198,8 +200,8 @@ impl ContinuationHistory {
 
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
-    ) -> *mut PieceToHistory<i16> {
-        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut PieceToHistory<i16>
+    ) -> *mut ContinuationHistorySubtable {
+        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut ContinuationHistorySubtable
     }
 
     pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
