@@ -138,7 +138,7 @@ pub struct ThreadData {
     pub noisy_history: NoisyHistory,
     pub quiet_history: QuietHistory,
     pub continuation_history_even: ContinuationHistory,
-    pub continuation_history_odd: ContinuationHistory,
+    pub continuation_history_odd: [ContinuationHistory; 2],
     pub continuation_corrhist: ContinuationCorrectionHistory,
     pub best_move_changes: usize,
     pub optimism: [i32; 2],
@@ -170,7 +170,7 @@ impl ThreadData {
             noisy_history: NoisyHistory::default(),
             quiet_history: QuietHistory::default(),
             continuation_history_even: ContinuationHistory::default(),
-            continuation_history_odd: ContinuationHistory::default(),
+            continuation_history_odd: [ContinuationHistory::default(), ContinuationHistory::default()],
             continuation_corrhist: ContinuationCorrectionHistory::default(),
             best_move_changes: 0,
             optimism: [0; 2],
@@ -198,13 +198,18 @@ impl ThreadData {
     }
 
     pub fn conthiste(&self, ply: isize, index: isize, mv: Move) -> i32 {
-        debug_assert!(index == 1 || index % 2 == 0);
+        debug_assert!(index > 0 && index % 2 == 0);
         self.continuation_history_even.get(self.stack[ply - index].conthiste, self.board.piece_on(mv.from()), mv.to())
     }
 
     pub fn conthisto(&self, ply: isize, index: isize, mv: Move) -> i32 {
-        debug_assert!(index == 1 || index % 2 == 1);
-        self.continuation_history_odd.get(self.stack[ply - index].conthisto, self.board.piece_on(mv.from()), mv.to())
+        debug_assert!(index > 0 && index % 2 == 1);
+        let i = index as usize / 2;
+        self.continuation_history_odd[i].get(
+            self.stack[ply - index].conthisto[i],
+            self.board.piece_on(mv.from()),
+            mv.to(),
+        )
     }
 
     pub fn print_uci_info(&self, depth: i32) {

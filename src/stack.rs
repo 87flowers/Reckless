@@ -1,10 +1,14 @@
 use std::ops::{Index, IndexMut};
 
-use crate::types::{MAX_PLY, Move, Piece, Score};
+use crate::{
+    history::ContinuationHistorySubtable,
+    types::{MAX_PLY, Move, Piece, Score},
+};
 
 pub struct Stack {
     data: [StackEntry; MAX_PLY + 16],
-    sentinel: [[i16; 64]; 13],
+    conthist_sentinel: ContinuationHistorySubtable,
+    contcorrhist_sentinel: [[i16; 64]; 13],
 }
 
 impl Stack {
@@ -14,11 +18,10 @@ impl Stack {
 
     pub fn new() -> Box<Self> {
         let mut stack = Box::new(Self::default());
-        let ptr = &raw mut stack.sentinel;
         for entry in &mut stack.data {
-            entry.conthiste = ptr;
-            entry.conthisto = ptr;
-            entry.contcorrhist = ptr;
+            entry.conthiste = &raw mut stack.conthist_sentinel;
+            entry.conthisto = [&raw mut stack.conthist_sentinel; 2];
+            entry.contcorrhist = &raw mut stack.contcorrhist_sentinel;
         }
         stack
     }
@@ -28,7 +31,8 @@ impl Default for Stack {
     fn default() -> Self {
         Self {
             data: [StackEntry::default(); MAX_PLY + 16],
-            sentinel: [[0; 64]; 13],
+            conthist_sentinel: [[0; 64]; 7],
+            contcorrhist_sentinel: [[0; 64]; 13],
         }
     }
 }
@@ -44,8 +48,8 @@ pub struct StackEntry {
     pub cutoff_count: i32,
     pub move_count: i32,
     pub reduction: i32,
-    pub conthiste: *mut [[i16; 64]; 13],
-    pub conthisto: *mut [[i16; 64]; 13],
+    pub conthiste: *mut ContinuationHistorySubtable,
+    pub conthisto: [*mut ContinuationHistorySubtable; 2],
     pub contcorrhist: *mut [[i16; 64]; 13],
 }
 
@@ -64,7 +68,7 @@ impl Default for StackEntry {
             move_count: 0,
             reduction: 0,
             conthiste: std::ptr::null_mut(),
-            conthisto: std::ptr::null_mut(),
+            conthisto: [std::ptr::null_mut(); 2],
             contcorrhist: std::ptr::null_mut(),
         }
     }

@@ -714,7 +714,7 @@ fn search<NODE: NodeType>(
         let is_quiet = mv.is_quiet();
 
         let history = if is_quiet {
-            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthiste(ply, 1, mv) + td.conthiste(ply, 2, mv)
+            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthisto(ply, 1, mv) + td.conthiste(ply, 2, mv)
         } else {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
@@ -1052,8 +1052,12 @@ fn search<NODE: NodeType>(
             let entry = &td.stack[ply - 2];
             if entry.mv.is_present() {
                 let bonus = (159 * depth - 39).min(1160);
-                td.continuation_history_even.update(entry.conthiste, td.stack[ply - 1].piece, prior_move.to(), bonus);
-                td.continuation_history_odd.update(entry.conthisto, td.stack[ply - 1].piece, prior_move.to(), bonus);
+                td.continuation_history_odd[0].update(
+                    entry.conthisto[0],
+                    td.stack[ply - 1].piece,
+                    prior_move.to(),
+                    bonus,
+                );
             }
         } else if prior_move.is_noisy() {
             let captured = td.board.captured_piece().unwrap_or_default().piece_type();
@@ -1344,16 +1348,17 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
 }
 
 fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, sq: Square, bonus: i32) {
-    for offset in [1, 2, 4, 6] {
+    for offset in [2, 4, 6] {
         let entry = &td.stack[ply - offset];
         if entry.mv.is_present() {
             td.continuation_history_even.update(entry.conthiste, piece, sq, bonus);
         }
     }
-    for offset in [3] {
+    for offset in [1, 3] {
         let entry = &td.stack[ply - offset];
         if entry.mv.is_present() {
-            td.continuation_history_odd.update(entry.conthisto, piece, sq, bonus);
+            let i = offset as usize / 2;
+            td.continuation_history_odd[i].update(entry.conthisto[i], piece, sq, bonus);
         }
     }
 }
@@ -1365,8 +1370,10 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
     td.stack[ply].piece = piece;
     td.stack[ply].conthiste =
         td.continuation_history_even.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
-    td.stack[ply].conthisto =
-        td.continuation_history_odd.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
+    for i in 0..td.stack[ply].conthisto.len() {
+        td.stack[ply].conthisto[i] =
+            td.continuation_history_odd[i].subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
+    }
     td.stack[ply].contcorrhist =
         td.continuation_corrhist.subtable_ptr(td.board.in_check(), mv.is_noisy(), piece, mv.to());
 
