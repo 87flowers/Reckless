@@ -1049,10 +1049,18 @@ fn search<NODE: NodeType>(
 
             td.quiet_history.update(td.board.prior_threats(), !stm, prior_move, scaled_bonus);
 
-            let entry = &td.stack[ply - 2];
-            if entry.mv.is_present() {
-                let bonus = (159 * depth - 39).min(1160);
-                td.continuation_history_even.update(entry.conthiste, td.stack[ply - 1].piece, prior_move.to(), bonus);
+            for offset in [1, 3] {
+                let entry = &td.stack[ply - 1 - offset];
+                if entry.mv.is_present() {
+                    let i = offset as usize / 2;
+                    let bonus = (159 * depth - 39).min(1160);
+                    td.continuation_history_odd[i].update(
+                        entry.conthisto[i],
+                        td.stack[ply - 1].piece,
+                        prior_move.to(),
+                        bonus,
+                    );
+                }
             }
         } else if prior_move.is_noisy() {
             let captured = td.board.captured_piece().unwrap_or_default().piece_type();
