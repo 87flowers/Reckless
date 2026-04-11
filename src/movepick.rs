@@ -245,6 +245,7 @@ impl MovePicker {
                 + td.conthiste(ply, 2, mv)
                 + td.conthisto(ply, 3, mv)
                 + td.conthiste(ply, 4, mv)
+                + td.conthisto(ply, 5, mv)
                 + td.conthiste(ply, 6, mv)
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
