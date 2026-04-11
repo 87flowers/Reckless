@@ -675,7 +675,10 @@ fn search<NODE: NodeType>(
         }
         // Multi-Cut
         else if score >= beta && !is_decisive(score) {
-            return (2 * score + beta) / 3;
+            if !NODE::PV {
+                return (2 * score + beta) / 3;
+            }
+            depth /= 2;
         }
         // Negative Extensions
         else if tt_score >= beta {
