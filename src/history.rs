@@ -10,7 +10,7 @@ type PieceToHistory<T> = [[T; 64]; 13];
 type ContinuationCorrectionHistoryType = [[[[PieceToHistory<i16>; 64]; 13]; 2]; 2];
 
 pub type ContinuationHistorySubtable = PieceToHistory<i16>;
-type ContinuationHistoryType = [[[[ContinuationHistorySubtable; 64]; 13]; 2]; 2];
+type ContinuationHistoryType = [[[[ContinuationHistorySubtable; 64]; 7]; 2]; 2];
 
 fn apply_bonus<const MAX: i32>(entry: &mut i16, bonus: i32) {
     let bonus = bonus.clamp(-MAX, MAX);
@@ -201,14 +201,14 @@ impl ContinuationHistory {
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
     ) -> *mut ContinuationHistorySubtable {
-        &raw mut self.entries[in_check as usize][capture as usize][piece][to]
+        &raw mut self.entries[in_check as usize][capture as usize][piece.piece_type()][to]
     }
 
-    pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
+    pub fn get(&self, subtable_ptr: *mut ContinuationHistorySubtable, piece: Piece, to: Square) -> i32 {
         (unsafe { &*subtable_ptr }[piece][to]) as i32
     }
 
-    pub fn update(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square, bonus: i32) {
+    pub fn update(&self, subtable_ptr: *mut ContinuationHistorySubtable, piece: Piece, to: Square, bonus: i32) {
         let entry = &mut unsafe { &mut *subtable_ptr }[piece][to];
         apply_bonus::<{ Self::MAX_HISTORY }>(entry, bonus);
     }
