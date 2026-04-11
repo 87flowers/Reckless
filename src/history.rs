@@ -7,6 +7,7 @@ use crate::{
 
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 13];
+type ContinuationCorrectionHistoryType = [[[[PieceToHistory<i16>; 64]; 13]; 2]; 2];
 type ContinuationHistoryType = [[[[PieceToHistory<i16>; 64]; 13]; 2]; 2];
 
 fn apply_bonus<const MAX: i32>(entry: &mut i16, bonus: i32) {
@@ -159,7 +160,7 @@ impl Default for CorrectionHistory {
 
 pub struct ContinuationCorrectionHistory {
     // [in_check][capture][piece][to][piece][to]
-    entries: Box<ContinuationHistoryType>,
+    entries: Box<ContinuationCorrectionHistoryType>,
 }
 
 impl ContinuationCorrectionHistory {
@@ -168,7 +169,7 @@ impl ContinuationCorrectionHistory {
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
     ) -> *mut PieceToHistory<i16> {
-        self.entries[in_check as usize][capture as usize][piece][to].as_mut_ptr().cast()
+        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut PieceToHistory<i16>
     }
 
     pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
@@ -198,7 +199,7 @@ impl ContinuationHistory {
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
     ) -> *mut PieceToHistory<i16> {
-        self.entries[in_check as usize][capture as usize][piece][to].as_mut_ptr().cast()
+        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut PieceToHistory<i16>
     }
 
     pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
