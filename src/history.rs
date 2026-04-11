@@ -171,7 +171,7 @@ impl ContinuationCorrectionHistory {
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
     ) -> *mut PieceToHistory<i16> {
-        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut PieceToHistory<i16>
+        &raw mut self.entries[in_check as usize][capture as usize][piece][to]
     }
 
     pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
@@ -201,7 +201,7 @@ impl ContinuationHistory {
     pub fn subtable_ptr(
         &mut self, in_check: bool, capture: bool, piece: Piece, to: Square,
     ) -> *mut ContinuationHistorySubtable {
-        &mut self.entries[in_check as usize][capture as usize][piece][to] as *mut ContinuationHistorySubtable
+        &raw mut self.entries[in_check as usize][capture as usize][piece][to]
     }
 
     pub fn get(&self, subtable_ptr: *mut PieceToHistory<i16>, piece: Piece, to: Square) -> i32 {
