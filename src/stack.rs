@@ -21,7 +21,8 @@ impl Stack {
         let conthist_ptr = &raw mut stack.conthist_sentinel;
         let contcorrhist_ptr = &raw mut stack.contcorrhist_sentinel;
         for entry in &mut stack.data {
-            entry.conthist = conthist_ptr;
+            entry.conthiste = conthist_ptr;
+            entry.conthisto = [conthist_ptr; 1];
             entry.contcorrhist = contcorrhist_ptr;
         }
         stack
@@ -49,7 +50,8 @@ pub struct StackEntry {
     pub cutoff_count: i32,
     pub move_count: i32,
     pub reduction: i32,
-    pub conthist: *mut ContinuationHistorySubtable,
+    pub conthiste: *mut ContinuationHistorySubtable,
+    pub conthisto: [*mut ContinuationHistorySubtable; 1],
     pub contcorrhist: *mut [[i16; 64]; 13],
 }
 
@@ -67,7 +69,8 @@ impl Default for StackEntry {
             cutoff_count: 0,
             move_count: 0,
             reduction: 0,
-            conthist: std::ptr::null_mut(),
+            conthiste: std::ptr::null_mut(),
+            conthisto: [std::ptr::null_mut(); 1],
             contcorrhist: std::ptr::null_mut(),
         }
     }
