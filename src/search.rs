@@ -848,7 +848,7 @@ fn search<NODE: NodeType>(
                     new_depth += (score > best_score + 61) as i32;
                     new_depth += (score > best_score + 801) as i32;
                     new_depth -= (score < best_score + 5 + reduced_depth) as i32;
-                    new_depth -= (extension > 0 && tt_move_score < singular_score) as i32;
+                    new_depth -= (is_valid(singular_score) && extension > 0 && tt_move_score < singular_score) as i32;
                 }
 
                 if new_depth > reduced_depth {
