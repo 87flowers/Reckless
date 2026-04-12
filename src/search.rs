@@ -772,10 +772,9 @@ fn search<NODE: NodeType>(
 
             if !in_check
                 && is_quiet
-                && depth < 10
                 && is_valid(singular_score)
-                && move_count >= 4
-                && singular_score + 5 * depth < best_score
+                && move_count >= 4 + depth
+                && singular_score + 25 < best_score
             {
                 skip_quiets = true;
                 continue;
