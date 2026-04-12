@@ -154,7 +154,7 @@ impl MovePicker {
 
     fn score_noisy(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.all_threats();
-        let their_nmp_threat = td.stack[ply].threat;
+        let our_nmp_threat = td.stack[ply - 1].threat;
 
         if td.board.in_check() {
             for entry in self.list.iter_mut() {
@@ -176,7 +176,7 @@ impl MovePicker {
                     entry.score += 4000;
                 }
 
-                if their_nmp_threat.is_present() && mv.to() == their_nmp_threat.from() {
+                if mv == our_nmp_threat {
                     entry.score += 1000;
                 }
             }
@@ -186,6 +186,7 @@ impl MovePicker {
     fn score_quiet(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.all_threats();
         let side = td.board.side_to_move();
+        let our_nmp_threat = td.stack[ply - 1].threat;
 
         let threatened = {
             let pawn_threats = td.board.piece_threats(PieceType::Pawn);
@@ -255,7 +256,8 @@ impl MovePicker {
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
-                - 4000 * wall_pawns.contains(mv.from()) as i32;
+                - 4000 * wall_pawns.contains(mv.from()) as i32
+                + 1000 * (mv == our_nmp_threat) as i32;
         }
     }
 }
