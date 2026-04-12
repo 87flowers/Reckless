@@ -766,8 +766,12 @@ fn search<NODE: NodeType>(
             } else {
                 (-8 * depth * depth - 36 * depth - 32 * history / 1024 + 11).min(0)
             };
-
             if !td.board.see(mv, threshold) {
+                continue;
+            }
+
+            if !in_check && is_quiet && depth < 10 && is_valid(singular_score) && singular_score + 15 < best_score {
+                skip_quiets = true;
                 continue;
             }
         }
