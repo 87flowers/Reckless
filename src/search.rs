@@ -462,6 +462,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].threat = Move::NULL;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -563,6 +564,8 @@ fn search<NODE: NodeType>(
         let score = -search::<NonPV>(td, -beta, -beta + 1, depth - r, false, ply + 1);
 
         td.board.undo_null_move();
+
+        td.stack[ply].threat = td.stack[ply + 1].mv;
 
         if td.shared.status.get() == Status::STOPPED {
             return Score::ZERO;
@@ -785,6 +788,8 @@ fn search<NODE: NodeType>(
             reduction -= 68 * move_count;
             reduction -= 3297 * correction_value.abs() / 1024;
             reduction += 1306 * alpha_raises;
+
+            reduction -= 256 * (td.stack[ply - 1].threat == mv) as i32;
 
             reduction += 546 * (is_valid(tt_score) && tt_score <= alpha) as i32;
             reduction += 322 * (is_valid(tt_score) && tt_depth < depth) as i32;
