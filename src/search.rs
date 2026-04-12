@@ -766,17 +766,8 @@ fn search<NODE: NodeType>(
             } else {
                 (-8 * depth * depth - 36 * depth - 32 * history / 1024 + 11).min(0)
             };
-            if !td.board.see(mv, threshold) {
-                continue;
-            }
 
-            if !in_check
-                && is_quiet
-                && is_valid(singular_score)
-                && move_count >= 4 + depth
-                && singular_score + 25 < best_score
-            {
-                skip_quiets = true;
+            if !td.board.see(mv, threshold) {
                 continue;
             }
         }
@@ -857,6 +848,7 @@ fn search<NODE: NodeType>(
                     new_depth += (score > best_score + 61) as i32;
                     new_depth += (score > best_score + 801) as i32;
                     new_depth -= (score < best_score + 5 + reduced_depth) as i32;
+                    new_depth -= (extension > 0 && tt_move_score < singular_score) as i32;
                 }
 
                 if new_depth > reduced_depth {
