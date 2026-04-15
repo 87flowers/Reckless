@@ -24,9 +24,9 @@ mod see;
 struct InternalState {
     key: u64,
     pawn_key: u64,
-    major_key: u64,
     minor_key: u64,
     non_pawn_keys: [u64; Color::NUM],
+    pbr_key: u64,
     en_passant: Square,
     castling: Castling,
     halfmove_clock: u8,
@@ -87,16 +87,16 @@ impl Board {
         self.state.pawn_key
     }
 
-    pub const fn major_key(&self) -> u64 {
-        self.state.major_key
-    }
-
     pub const fn minor_key(&self) -> u64 {
         self.state.minor_key
     }
 
     pub const fn non_pawn_key(&self, color: Color) -> u64 {
         self.state.non_pawn_keys[color as usize]
+    }
+
+    pub const fn pbr_key(&self) -> u64 {
+        self.state.pbr_key
     }
 
     pub const fn pinned(&self, color: Color) -> Bitboard {
@@ -234,13 +234,13 @@ impl Board {
         } else {
             self.state.non_pawn_keys[piece.piece_color()] ^= key;
 
-            if [PieceType::Queen, PieceType::Rook].contains(&piece.piece_type()) {
-                self.state.major_key ^= key;
-            }
-
             if [PieceType::Knight, PieceType::Bishop, PieceType::King].contains(&piece.piece_type()) {
                 self.state.minor_key ^= key;
             }
+        }
+
+        if [PieceType::Pawn, PieceType::Bishop, PieceType::Rook].contains(&piece.piece_type()) {
+            self.state.pbr_key ^= key;
         }
     }
 
@@ -525,9 +525,9 @@ impl Board {
     pub fn update_hash_keys(&mut self) {
         self.state.key = 0;
         self.state.pawn_key = 0;
-        self.state.major_key = 0;
         self.state.minor_key = 0;
         self.state.non_pawn_keys = [0; Color::NUM];
+        self.state.pbr_key = 0;
 
         for piece in 0..Piece::NUM {
             let piece = Piece::from_index(piece);

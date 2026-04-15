@@ -89,9 +89,9 @@ impl Default for Status {
 #[derive(Default)]
 pub struct SharedCorrectionHistory {
     pub pawn: CorrectionHistory,
-    pub major: CorrectionHistory,
     pub minor: CorrectionHistory,
     pub non_pawn: [CorrectionHistory; 2],
+    pub pbr: CorrectionHistory,
 }
 
 unsafe impl NumaValue for SharedCorrectionHistory {}
