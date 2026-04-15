@@ -478,16 +478,12 @@ fn search<NODE: NodeType>(
         depth += 1;
     }
 
-    if !NODE::ROOT
-        && !tt_pv
-        && !in_check
-        && !excluded
-        && depth >= 2
-        && td.stack[ply - 1].reduction > 0
-        && is_valid(td.stack[ply - 1].eval)
-        && eval + td.stack[ply - 1].eval > 59
-    {
-        depth -= 1;
+    if !NODE::ROOT && !tt_pv && !in_check && !excluded && depth >= 2 && is_valid(td.stack[ply - 1].eval) {
+        if (td.stack[ply - 1].reduction > 0 && eval + td.stack[ply - 1].eval > 59)
+            || (td.stack[ply - 1].mv.is_null() && eval + td.stack[ply - 1].eval > 29)
+        {
+            depth -= 1;
+        }
     }
 
     let potential_singularity = depth >= 5 + tt_pv as i32
