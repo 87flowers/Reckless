@@ -246,7 +246,7 @@ impl MovePicker {
                 + td.conthist(ply, 4, mv)
                 + td.conthist(ply, 6, mv)
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
-                + (3000 + 300 * td.board.phase()) * td.board.checking_squares(pt).contains(mv.to()) as i32
+                + (10000 - 300 * td.board.phase()) * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
