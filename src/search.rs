@@ -480,7 +480,10 @@ fn search<NODE: NodeType>(
 
     if !NODE::ROOT && !tt_pv && !in_check && !excluded && depth >= 2 && is_valid(td.stack[ply - 1].eval) {
         if (td.stack[ply - 1].reduction > 0 && eval + td.stack[ply - 1].eval > 59)
-            || (td.stack[ply - 1].mv.is_null() && eval + td.stack[ply - 1].eval > 29)
+            || (ply >= 2
+                && td.stack[ply - 1].mv.is_null()
+                && td.stack[ply - 2].reduction > 0
+                && eval + td.stack[ply - 1].eval > 50)
         {
             depth -= 1;
         }
