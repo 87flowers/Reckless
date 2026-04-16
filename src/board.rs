@@ -24,8 +24,8 @@ mod see;
 #[derive(Copy, Clone, Default)]
 struct InternalState {
     key: u64,
-    pawn_key: u64,
     non_pawn_keys: [u64; Color::NUM],
+    piece_keys: [u64; PieceType::NUM],
     en_passant: Square,
     castling: Castling,
     halfmove_clock: u8,
@@ -83,11 +83,15 @@ impl Board {
     }
 
     pub const fn pawn_key(&self) -> u64 {
-        self.state.pawn_key
+        self.state.piece_keys[PieceType::Pawn as usize]
     }
 
     pub const fn non_pawn_key(&self, color: Color) -> u64 {
         self.state.non_pawn_keys[color as usize]
+    }
+
+    pub const fn triplet_key(&self, a: PieceType, b: PieceType, c: PieceType) -> u64 {
+        self.state.piece_keys[a as usize] ^ self.state.piece_keys[b as usize] ^ self.state.piece_keys[c as usize]
     }
 
     pub const fn pinned(&self, color: Color) -> Bitboard {
@@ -220,11 +224,11 @@ impl Board {
 
         self.state.key ^= key;
 
-        if piece.piece_type() == PieceType::Pawn {
-            self.state.pawn_key ^= key;
-        } else {
+        if piece.piece_type() != PieceType::Pawn {
             self.state.non_pawn_keys[piece.piece_color()] ^= key;
         }
+
+        self.state.piece_keys[piece.piece_type() as usize] ^= key;
     }
 
     /// Checks for a material draw
@@ -495,7 +499,7 @@ impl Board {
 
     pub fn update_hash_keys(&mut self) {
         self.state.key = 0;
-        self.state.pawn_key = 0;
+        self.state.piece_keys = [0; PieceType::NUM];
         self.state.non_pawn_keys = [0; Color::NUM];
 
         for piece in 0..Piece::NUM {

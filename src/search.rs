@@ -1313,6 +1313,16 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let corrhist = td.corrhist();
 
     (corrhist.pawn.get(stm, td.board.pawn_key())
+        + corrhist.kpn.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Knight))
+        + corrhist.kpb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Bishop))
+        + corrhist.kpr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Rook))
+        + corrhist.kpq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Queen))
+        + corrhist.knb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Bishop))
+        + corrhist.knr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Rook))
+        + corrhist.knq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Queen))
+        + corrhist.kbr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Rook))
+        + corrhist.kbq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Queen))
+        + corrhist.krq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Rook, PieceType::Queen))
         + corrhist.non_pawn[Color::White].get(stm, td.board.non_pawn_key(Color::White))
         + corrhist.non_pawn[Color::Black].get(stm, td.board.non_pawn_key(Color::Black))
         + td.continuation_corrhist.get(
@@ -1337,6 +1347,17 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
 
     corrhist.non_pawn[Color::White].update(stm, td.board.non_pawn_key(Color::White), bonus);
     corrhist.non_pawn[Color::Black].update(stm, td.board.non_pawn_key(Color::Black), bonus);
+
+    corrhist.kpn.update(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Knight), bonus);
+    corrhist.kpb.update(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Bishop), bonus);
+    corrhist.kpr.update(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Rook), bonus);
+    corrhist.kpq.update(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Queen), bonus);
+    corrhist.knb.update(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Bishop), bonus);
+    corrhist.knr.update(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Rook), bonus);
+    corrhist.knq.update(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Queen), bonus);
+    corrhist.kbr.update(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Rook), bonus);
+    corrhist.kbq.update(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Queen), bonus);
+    corrhist.krq.update(stm, td.board.triplet_key(PieceType::King, PieceType::Rook, PieceType::Queen), bonus);
 
     if td.stack[ply - 1].mv.is_present() && td.stack[ply - 2].mv.is_present() {
         td.continuation_corrhist.update(

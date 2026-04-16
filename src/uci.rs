@@ -176,6 +176,16 @@ fn reset(threads: &mut ThreadPool, shared: &Arc<SharedContext>) {
 
     for corrhist in unsafe { shared.replicator.get_all() } {
         corrhist.pawn.clear();
+        corrhist.kpn.clear();
+        corrhist.kpb.clear();
+        corrhist.kpr.clear();
+        corrhist.kpq.clear();
+        corrhist.knb.clear();
+        corrhist.knr.clear();
+        corrhist.knq.clear();
+        corrhist.kbr.clear();
+        corrhist.kbq.clear();
+        corrhist.krq.clear();
         corrhist.non_pawn[Color::White].clear();
         corrhist.non_pawn[Color::Black].clear();
     }
