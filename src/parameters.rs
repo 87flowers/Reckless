@@ -32,16 +32,3 @@ macro_rules! define {
         }
     };
 }
-
-define! {
-    i32 vv1: 512;
-    i32 vv2: 512;
-    i32 vv3: 512;
-    i32 vv4: 512;
-    i32 vv5: 512;
-    i32 vv6: 512;
-    i32 vv7: 512;
-    i32 vv8: 512;
-    i32 vv9: 512;
-    i32 vv10: 512;
-}
