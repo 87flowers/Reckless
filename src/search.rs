@@ -792,10 +792,10 @@ fn search<NODE: NodeType>(
             reduction += 322 * (is_valid(tt_score) && tt_depth < depth) as i32;
 
             if is_quiet {
-                reduction += 1806;
+                reduction += 1786;
                 reduction -= 166 * history / 1024;
             } else {
-                reduction += 1449;
+                reduction += 1429;
                 reduction -= 109 * history / 1024;
             }
 
@@ -831,8 +831,8 @@ fn search<NODE: NodeType>(
                 reduction += (512 * (margin - 160) / 128).clamp(0, 2048);
             }
 
-            if td.stack[ply - 1].move_count > 0 {
-                reduction += 64 * td.stack[ply - 1].move_count.ilog2() as i32;
+            if td.stack[ply - 2].move_count > 0 {
+                reduction += 24 * td.stack[ply - 2].move_count.ilog2() as i32;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 485 {
@@ -868,10 +868,10 @@ fn search<NODE: NodeType>(
             reduction -= 2408 * correction_value.abs() / 1024;
 
             if is_quiet {
-                reduction += 1429;
+                reduction += 1409;
                 reduction -= 152 * history / 1024;
             } else {
-                reduction += 1053;
+                reduction += 1033;
                 reduction -= 67 * history / 1024;
             }
 
@@ -902,8 +902,8 @@ fn search<NODE: NodeType>(
                 reduction -= 3281;
             }
 
-            if td.stack[ply - 1].move_count > 0 {
-                reduction += 64 * td.stack[ply - 1].move_count.ilog2() as i32;
+            if td.stack[ply - 2].move_count > 0 {
+                reduction += 24 * td.stack[ply - 2].move_count.ilog2() as i32;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 562 {
