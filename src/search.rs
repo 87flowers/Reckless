@@ -3,7 +3,6 @@ use std::sync::atomic::Ordering;
 use crate::{
     evaluation::correct_eval,
     movepick::{MovePicker, Stage},
-    parameters::*,
     stack::Stack,
     thread::{RootMove, Status, ThreadData},
     time::Limits,
@@ -1314,25 +1313,19 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let corrhist = td.corrhist();
 
     (corrhist.pawn.get(stm, td.board.pawn_key())
-        + vv1() * corrhist.kpn.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Knight))
+        + 533 * corrhist.kpn.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Knight)) / 1024
+        + 490 * corrhist.kpb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Bishop)) / 1024
+        + 475 * corrhist.kpr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Rook)) / 1024
+        + 489 * corrhist.kpq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Queen)) / 1024
+        + 457 * corrhist.knb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Bishop))
             / 1024
-        + vv2() * corrhist.kpb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Bishop))
+        + 527 * corrhist.knr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Rook)) / 1024
+        + 485 * corrhist.knq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Queen))
             / 1024
-        + vv3() * corrhist.kpr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Rook)) / 1024
-        + vv4() * corrhist.kpq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Pawn, PieceType::Queen))
+        + 493 * corrhist.kbr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Rook)) / 1024
+        + 451 * corrhist.kbq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Queen))
             / 1024
-        + vv5() * corrhist.knb.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Bishop))
-            / 1024
-        + vv6() * corrhist.knr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Rook))
-            / 1024
-        + vv7() * corrhist.knq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Knight, PieceType::Queen))
-            / 1024
-        + vv8() * corrhist.kbr.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Rook))
-            / 1024
-        + vv9() * corrhist.kbq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Bishop, PieceType::Queen))
-            / 1024
-        + vv10() * corrhist.krq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Rook, PieceType::Queen))
-            / 1024
+        + 578 * corrhist.krq.get(stm, td.board.triplet_key(PieceType::King, PieceType::Rook, PieceType::Queen)) / 1024
         + corrhist.non_pawn[Color::White].get(stm, td.board.non_pawn_key(Color::White))
         + corrhist.non_pawn[Color::Black].get(stm, td.board.non_pawn_key(Color::Black))
         + td.continuation_corrhist.get(
