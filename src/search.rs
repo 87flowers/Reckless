@@ -1230,6 +1230,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     }
 
     let mut best_move = Move::NULL;
+    let mut bound = Bound::Upper;
 
     let mut move_count = 0;
     let mut move_picker = MovePicker::new_qsearch();
@@ -1264,6 +1265,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
             best_score = score;
 
             if score > alpha {
+                bound = Bound::Exact;
                 best_move = mv;
 
                 if NODE::PV {
@@ -1271,6 +1273,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
                 }
 
                 if score >= beta {
+                    bound = Bound::Lower;
                     break;
                 }
 
@@ -1303,8 +1306,6 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     if best_score >= beta && !is_decisive(best_score) && !is_decisive(beta) {
         best_score = (best_score + beta) / 2;
     }
-
-    let bound = if best_score >= beta { Bound::Lower } else { Bound::Upper };
 
     td.shared.tt.write(hash, TtDepth::SOME, raw_eval, best_score, bound, best_move, ply, tt_pv, false);
 
