@@ -993,6 +993,9 @@ fn search<NODE: NodeType>(
 
                 if !is_decisive(score) {
                     alpha_raises += 1;
+                    if mv == tt_move {
+                        alpha_raises += 1;
+                    }
                 }
             }
         }
