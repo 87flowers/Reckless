@@ -240,7 +240,7 @@ impl MovePicker {
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
                 - 4000 * wall_pawns.contains(mv.from()) as i32
-                + 200 * (td.board.halfmove_clock() as i32 - 60).max(0) * (pt == PieceType::Pawn) as i32;
+                + 500 * (td.board.halfmove_clock() > 80 && pt == PieceType::Pawn) as i32;
         }
     }
 }
