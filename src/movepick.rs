@@ -203,6 +203,7 @@ impl MovePicker {
 
         // King ring diag attacks and ortho attacks
         let king_ring_ortho = rook_attacks_setwise(king_attacks(td.board.king_square(!side)), occupancies) & !threats;
+        let king_ring_diag = bishop_attacks_setwise(king_attacks(td.board.king_square(!side)), occupancies) & !threats;
 
         // don't move king wall pawns
         let wall_pawns = if Bitboard::HOME_ROWS[side].contains(td.board.king_square(side)) {
@@ -225,6 +226,10 @@ impl MovePicker {
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
+                + 3000
+                    * (pt == PieceType::Bishop
+                        && king_ring_diag.contains(mv.to())
+                        && !king_ring_diag.contains(mv.from())) as i32
                 - 4000 * wall_pawns.contains(mv.from()) as i32;
         }
     }
