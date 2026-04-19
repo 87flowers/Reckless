@@ -23,6 +23,11 @@ pub struct MovePicker {
     stage: Stage,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
     bad_noisy_idx: usize,
+
+    threatened: [Bitboard; PieceType::NUM],
+    offense: [Bitboard; PieceType::NUM],
+    king_ring_ortho: Bitboard,
+    wall_pawns: Bitboard,
 }
 
 impl MovePicker {
@@ -34,6 +39,10 @@ impl MovePicker {
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
+            threatened: [Bitboard(0); PieceType::NUM],
+            offense: [Bitboard(0); PieceType::NUM],
+            king_ring_ortho: Bitboard(0),
+            wall_pawns: Bitboard(0),
         }
     }
 
@@ -45,6 +54,10 @@ impl MovePicker {
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
+            threatened: [Bitboard(0); PieceType::NUM],
+            offense: [Bitboard(0); PieceType::NUM],
+            king_ring_ortho: Bitboard(0),
+            wall_pawns: Bitboard(0),
         }
     }
 
@@ -56,6 +69,10 @@ impl MovePicker {
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
+            threatened: [Bitboard(0); PieceType::NUM],
+            offense: [Bitboard(0); PieceType::NUM],
+            king_ring_ortho: Bitboard(0),
+            wall_pawns: Bitboard(0),
         }
     }
 
@@ -168,6 +185,8 @@ impl MovePicker {
         }
     }
 
+    const ESCAPE: [i32; PieceType::NUM] = [0, 7768, 8218, 13424, 20208, 0];
+
     fn score_quiet(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.all_threats();
         let side = td.board.side_to_move();
@@ -180,8 +199,6 @@ impl MovePicker {
             let rook_threats = minor_threats | td.board.piece_threats(PieceType::Rook);
             [Bitboard(0), pawn_threats, pawn_threats, minor_threats, rook_threats, Bitboard(0)]
         };
-
-        let escape = [0, 7768, 8218, 13424, 20208, 0];
 
         // safe squares where we can attack an opponent piece
         let offense = {
@@ -220,12 +237,28 @@ impl MovePicker {
                 + td.conthist(ply, 2, mv)
                 + td.conthist(ply, 4, mv)
                 + td.conthist(ply, 6, mv)
-                + escape[pt] * threatened[pt].contains(mv.from()) as i32
+                + Self::ESCAPE[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
                 + 6158 * offense[pt].contains(mv.to()) as i32
                 + 5000 * (pt == PieceType::Rook && king_ring_ortho.contains(mv.to())) as i32
                 - 4000 * wall_pawns.contains(mv.from()) as i32;
         }
+
+        self.threatened = threatened;
+        self.offense = offense;
+        self.king_ring_ortho = king_ring_ortho;
+        self.wall_pawns = wall_pawns;
+    }
+
+    pub fn quiet_static_move_score(&self, td: &ThreadData, mv: Move) -> i32 {
+        let pt = td.board.piece_on(mv.from()).piece_type();
+
+        Self::ESCAPE[pt] * self.threatened[pt].contains(mv.from()) as i32
+            + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
+            - 7584 * self.threatened[pt].contains(mv.to()) as i32
+            + 6158 * self.offense[pt].contains(mv.to()) as i32
+            + 5000 * (pt == PieceType::Rook && self.king_ring_ortho.contains(mv.to())) as i32
+            - 4000 * self.wall_pawns.contains(mv.from()) as i32
     }
 }

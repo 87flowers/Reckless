@@ -723,7 +723,10 @@ fn search<NODE: NodeType>(
         let is_quiet = mv.is_quiet();
 
         let history = if is_quiet {
-            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
+            move_picker.quiet_static_move_score(td, mv)
+                + td.quiet_history.get(td.board.all_threats(), stm, mv)
+                + td.conthist(ply, 1, mv)
+                + td.conthist(ply, 2, mv)
         } else {
             let captured = td.board.piece_on(mv.to()).piece_type();
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
