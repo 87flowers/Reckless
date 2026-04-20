@@ -210,15 +210,19 @@ impl MovePicker {
             Bitboard(0)
         };
 
+        let pawn_bb = td.board.pieces(PieceType::Pawn);
+
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
-            let pt = td.board.type_on(mv.from());
+            let piece = td.board.piece_on(mv.from());
+            let pt = piece.piece_type();
 
             entry.score = 2048 * td.quiet_history.get(threats, side, mv) / 1024
                 + 1536 * td.conthist(ply, 1, mv) / 1024
                 + td.conthist(ply, 2, mv)
                 + td.conthist(ply, 4, mv)
                 + td.conthist(ply, 6, mv)
+                + td.split_pawn_history.get(pawn_bb, piece, mv.to())
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32

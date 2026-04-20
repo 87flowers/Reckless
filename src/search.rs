@@ -1021,6 +1021,9 @@ fn search<NODE: NodeType>(
         let quiet_bonus = (172 * depth).min(1508) - 76 - 55 * cut_node as i32;
         let quiet_malus = (156 * depth).min(1065) - 45 - 36 * quiet_moves.len() as i32;
 
+        let pawn_bonus = quiet_bonus / 2;
+        let pawn_malus = quiet_malus / 2;
+
         let cont_bonus = (99 * depth).min(995) - 65 - 49 * cut_node as i32;
         let cont_malus = (371 * depth).min(914) - 44 - 18 * quiet_moves.len() as i32;
 
@@ -1033,11 +1036,15 @@ fn search<NODE: NodeType>(
                 noisy_bonus,
             );
         } else {
+            let pawn_bb = td.board.pieces(PieceType::Pawn);
+
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
+            td.split_pawn_history.update(pawn_bb, td.board.moved_piece(best_move), best_move.to(), pawn_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
 
             for &mv in quiet_moves.iter() {
                 td.quiet_history.update(td.board.all_threats(), stm, mv, -quiet_malus);
+                td.split_pawn_history.update(pawn_bb, td.board.moved_piece(mv), mv.to(), -pawn_malus);
                 update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
             }
         }

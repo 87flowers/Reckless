@@ -217,6 +217,53 @@ impl Default for ContinuationHistory {
     }
 }
 
+pub struct SplitPawnHistory {
+    entries: Box<[[PieceToHistory<i16>; Self::ENTRY_COUNT]; 3]>,
+}
+
+impl SplitPawnHistory {
+    const ENTRY_COUNT: usize = 1024;
+    const MAX_HISTORY: i32 = 16384;
+
+    fn hashes(pawns: Bitboard) -> (u64, u64, u64) {
+        fn bitmix(h: u64) -> u64 {
+            let h = h.wrapping_mul(0xBF58476D1CE4E5B9);
+            let h = h ^ (h >> 56);
+            h.wrapping_mul(0x94D049BB133111Eb)
+        }
+
+        let h0 = pawns.0 & 0x0000FFFFFFFF0000;
+        let h1 = pawns.0 & 0xFFFFFFFF00000000;
+        let h2 = pawns.0 & 0x00000000FFFFFFFF;
+
+        (bitmix(h0), bitmix(h1), bitmix(h2))
+    }
+
+    pub fn get(&self, pawns: Bitboard, piece: Piece, to: Square) -> i32 {
+        let (h0, h1, h2) = Self::hashes(pawns);
+        let e0 = self.entries[0][h0 as usize % Self::ENTRY_COUNT][piece][to];
+        let e1 = self.entries[1][h1 as usize % Self::ENTRY_COUNT][piece][to];
+        let e2 = self.entries[2][h2 as usize % Self::ENTRY_COUNT][piece][to];
+        (e0 as i32 + e1 as i32 + e2 as i32) / 3
+    }
+
+    pub fn update(&mut self, pawns: Bitboard, piece: Piece, to: Square, bonus: i32) {
+        let (h0, h1, h2) = Self::hashes(pawns);
+        let e0 = &mut self.entries[0][h0 as usize % Self::ENTRY_COUNT][piece][to];
+        apply_bonus::<{ Self::MAX_HISTORY }>(e0, bonus);
+        let e1 = &mut self.entries[1][h1 as usize % Self::ENTRY_COUNT][piece][to];
+        apply_bonus::<{ Self::MAX_HISTORY }>(e1, bonus);
+        let e2 = &mut self.entries[2][h2 as usize % Self::ENTRY_COUNT][piece][to];
+        apply_bonus::<{ Self::MAX_HISTORY }>(e2, bonus);
+    }
+}
+
+impl Default for SplitPawnHistory {
+    fn default() -> Self {
+        Self { entries: zeroed_box() }
+    }
+}
+
 fn zeroed_box<T>() -> Box<T> {
     unsafe {
         let layout = std::alloc::Layout::new::<T>();
