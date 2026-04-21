@@ -188,9 +188,12 @@ impl MovePicker {
             let knight_vulnerable = (td.board.colored_pieces(!side, PieceType::Bishop) & !threats)
                 | td.board.colored_pieces(!side, PieceType::Rook)
                 | td.board.colored_pieces(!side, PieceType::Queen);
-            let bishop_vulnerable = td.board.colored_pieces(!side, PieceType::Rook);
-            let queen_orth_vulnerable = td.board.colored_pieces(!side, PieceType::Bishop) & !threats;
-            let queen_diag_vulnerable = td.board.colored_pieces(!side, PieceType::Rook) & !threats;
+            let bishop_vulnerable = (td.board.colored_pieces(!side, PieceType::Knight) & !threats)
+                | td.board.colored_pieces(!side, PieceType::Rook);
+            let queen_orth_vulnerable = (td.board.colored_pieces(!side, PieceType::Knight) & !threats)
+                | td.board.colored_pieces(!side, PieceType::Bishop) & !threats;
+            let queen_diag_vulnerable = (td.board.colored_pieces(!side, PieceType::Knight) & !threats)
+                | td.board.colored_pieces(!side, PieceType::Rook) & !threats;
 
             let p = pawn_attacks_setwise(td.board.colors(!side), !side);
             let n = knight_attacks_setwise(knight_vulnerable);
