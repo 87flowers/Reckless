@@ -701,7 +701,8 @@ fn search<NODE: NodeType>(
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker =
+        MovePicker::new(tt_move, if !is_decisive(singular_score) { Some(singular_score - eval) } else { None });
     let mut skip_quiets = false;
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
