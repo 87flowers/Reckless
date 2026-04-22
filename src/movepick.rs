@@ -11,7 +11,7 @@ pub enum Stage {
     HashMove,
     GenerateNoisy,
     GoodNoisy,
-    AlternativeQuietMove,
+    AlternateQuietMove,
     GenerateQuiet,
     Quiet,
     BadNoisy,
@@ -106,11 +106,11 @@ impl MovePicker {
             if skip_quiets {
                 self.stage = Stage::BadNoisy;
             } else {
-                self.stage = Stage::AlternativeQuietMove;
+                self.stage = Stage::AlternateQuietMove;
             }
         }
 
-        if self.stage == Stage::AlternativeQuietMove {
+        if self.stage == Stage::AlternateQuietMove {
             self.stage = Stage::GenerateQuiet;
 
             if td.board.is_legal(self.alternate_quiet_move) {
@@ -128,7 +128,7 @@ impl MovePicker {
             if !skip_quiets {
                 while !self.list.is_empty() {
                     let entry = self.get_best_entry();
-                    if entry.mv == self.tt_move {
+                    if entry.mv == self.tt_move || entry.mv == self.alternate_quiet_move {
                         continue;
                     }
 
