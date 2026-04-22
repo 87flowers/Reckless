@@ -11,6 +11,7 @@ pub enum Stage {
     HashMove,
     GenerateNoisy,
     GoodNoisy,
+    AlternativeQuietMove,
     GenerateQuiet,
     Quiet,
     BadNoisy,
@@ -19,6 +20,7 @@ pub enum Stage {
 pub struct MovePicker {
     list: MoveList,
     tt_move: Move,
+    alternate_quiet_move: Move,
     threshold: Option<i32>,
     stage: Stage,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
@@ -26,10 +28,11 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-    pub const fn new(tt_move: Move) -> Self {
+    pub const fn new(tt_move: Move, alternate_move: Move) -> Self {
         Self {
             list: MoveList::new(),
             tt_move,
+            alternate_quiet_move: if alternate_move.is_quiet() { alternate_move } else { Move::NULL },
             threshold: None,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
@@ -41,6 +44,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            alternate_quiet_move: Move::NULL,
             threshold: Some(threshold),
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -52,6 +56,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            alternate_quiet_move: Move::NULL,
             threshold: None,
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -101,7 +106,15 @@ impl MovePicker {
             if skip_quiets {
                 self.stage = Stage::BadNoisy;
             } else {
-                self.stage = Stage::GenerateQuiet;
+                self.stage = Stage::AlternativeQuietMove;
+            }
+        }
+
+        if self.stage == Stage::AlternativeQuietMove {
+            self.stage = Stage::GenerateQuiet;
+
+            if td.board.is_legal(self.alternate_quiet_move) {
+                return Some(self.alternate_quiet_move);
             }
         }
 

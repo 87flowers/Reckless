@@ -654,6 +654,7 @@ fn search<NODE: NodeType>(
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
+    let mut alternate_move = Move::NULL;
 
     if !NODE::ROOT && !excluded && potential_singularity {
         debug_assert!(is_valid(tt_score));
@@ -666,6 +667,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].excluded = tt_move;
         td.stack[ply].mv = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
+        alternate_move = td.stack[ply].mv;
         td.stack[ply].excluded = Move::NULL;
 
         if td.shared.status.get() == Status::STOPPED {
@@ -685,7 +687,7 @@ fn search<NODE: NodeType>(
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
             return (2 * singular_score + beta) / 3;
-        } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
+        } else if singular_score > tt_score && !alternate_move.is_null() {
             tt_move = Move::NULL;
         }
         // Negative Extensions
@@ -701,7 +703,7 @@ fn search<NODE: NodeType>(
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, alternate_move);
     let mut skip_quiets = false;
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
