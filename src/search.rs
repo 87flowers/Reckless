@@ -839,7 +839,7 @@ fn search<NODE: NodeType>(
             }
 
             if mv == alternate_move {
-                reduction -= 1500;
+                reduction -= 3200;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 485 {
@@ -908,7 +908,7 @@ fn search<NODE: NodeType>(
             if mv == tt_move {
                 reduction -= 3281;
             } else if mv == alternate_move {
-                reduction -= 1500;
+                reduction -= 3200;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 562 {
