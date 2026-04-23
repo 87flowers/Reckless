@@ -462,6 +462,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].best_move = Move::NULL;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -654,6 +655,7 @@ fn search<NODE: NodeType>(
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
+    let mut alternate_move = Move::NULL;
 
     if !NODE::ROOT && !excluded && potential_singularity {
         debug_assert!(is_valid(tt_score));
@@ -664,8 +666,8 @@ fn search<NODE: NodeType>(
         let singular_depth = (depth - 1) / 2;
 
         td.stack[ply].excluded = tt_move;
-        td.stack[ply].mv = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
+        alternate_move = td.stack[ply].best_move;
         td.stack[ply].excluded = Move::NULL;
 
         if td.shared.status.get() == Status::STOPPED {
@@ -685,7 +687,9 @@ fn search<NODE: NodeType>(
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
             return (2 * singular_score + beta) / 3;
-        } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
+        }
+        // Found potentially better than TT move
+        else if singular_score > tt_score && !alternate_move.is_null() {
             tt_move = Move::NULL;
         }
         // Negative Extensions
@@ -1015,6 +1019,8 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        td.stack[ply].best_move = best_move;
+
         let noisy_bonus = (115 * depth).min(778) - 50 - 77 * cut_node as i32;
         let noisy_malus = (176 * depth).min(1343) - 51 - 21 * noisy_moves.len() as i32;
 
