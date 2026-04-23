@@ -364,6 +364,7 @@ fn search<NODE: NodeType>(
             }
 
             if td.board.halfmove_clock() < 90 {
+                td.stack[ply].best_move = tt_move;
                 return tt_score;
             }
         }
