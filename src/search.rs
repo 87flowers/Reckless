@@ -462,6 +462,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].best_move = Move::NULL;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -665,9 +666,8 @@ fn search<NODE: NodeType>(
         let singular_depth = (depth - 1) / 2;
 
         td.stack[ply].excluded = tt_move;
-        td.stack[ply].mv = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
-        alternate_move = td.stack[ply].mv;
+        alternate_move = td.stack[ply].best_move;
         td.stack[ply].excluded = Move::NULL;
 
         if td.shared.status.get() == Status::STOPPED {
@@ -1019,6 +1019,8 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        td.stack[ply].best_move = best_move;
+
         let noisy_bonus = (115 * depth).min(778) - 50 - 77 * cut_node as i32;
         let noisy_malus = (176 * depth).min(1343) - 51 - 21 * noisy_moves.len() as i32;
 
