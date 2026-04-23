@@ -690,7 +690,7 @@ fn search<NODE: NodeType>(
         else if singular_score >= beta && !is_decisive(singular_score) {
             return (2 * singular_score + beta) / 3;
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
-            tt_move = Move::NULL;
+            tt_move = alternate_move;
         }
         // Negative Extensions
         else if tt_score >= beta || cut_node {
@@ -820,8 +820,7 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1818;
-                reduction += 2000 * tt_move.is_null() as i32;
-                reduction += 800 * alternate_move.is_null() as i32;
+                reduction += 2118 * tt_move.is_null() as i32;
             }
 
             if !improving {
@@ -888,8 +887,7 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1543;
-                reduction += 2000 * tt_move.is_null() as i32;
-                reduction += 800 * alternate_move.is_null() as i32;
+                reduction += 2058 * tt_move.is_null() as i32;
             }
 
             if !improving {
