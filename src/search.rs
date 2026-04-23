@@ -705,7 +705,7 @@ fn search<NODE: NodeType>(
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
 
     let mut move_count = 0;
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, alternate_move);
     let mut skip_quiets = false;
     let mut current_search_count = 0;
     let mut alpha_raises = 0;
@@ -840,10 +840,6 @@ fn search<NODE: NodeType>(
                 reduction += (512 * (margin - 160) / 128).clamp(0, 2048);
             }
 
-            if mv == alternate_move {
-                reduction -= 1024;
-            }
-
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 485 {
                 reduction += 129;
             }
@@ -909,8 +905,6 @@ fn search<NODE: NodeType>(
 
             if mv == tt_move {
                 reduction -= 3281;
-            } else if mv == alternate_move {
-                reduction -= 1024;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 562 {
