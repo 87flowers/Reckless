@@ -364,6 +364,7 @@ fn search<NODE: NodeType>(
             }
 
             if td.board.halfmove_clock() < 90 {
+                td.stack[ply].best_move = tt_move;
                 return tt_score;
             }
         }
@@ -462,6 +463,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].best_move = Move::NULL;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -654,6 +656,7 @@ fn search<NODE: NodeType>(
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
+    let mut alternate_move = Move::NULL;
 
     if !NODE::ROOT && !excluded && potential_singularity {
         debug_assert!(is_valid(tt_score));
@@ -666,6 +669,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].excluded = tt_move;
         td.stack[ply].mv = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
+        alternate_move = td.stack[ply].best_move;
         td.stack[ply].excluded = Move::NULL;
 
         if td.shared.status.get() == Status::STOPPED {
@@ -816,7 +820,8 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1818;
-                reduction += 2118 * tt_move.is_null() as i32;
+                reduction += 2000 * tt_move.is_null() as i32;
+                reduction += 800 * alternate_move.is_null() as i32;
             }
 
             if !improving {
@@ -883,7 +888,8 @@ fn search<NODE: NodeType>(
 
             if !tt_pv && cut_node {
                 reduction += 1543;
-                reduction += 2058 * tt_move.is_null() as i32;
+                reduction += 2000 * tt_move.is_null() as i32;
+                reduction += 800 * alternate_move.is_null() as i32;
             }
 
             if !improving {
@@ -1015,6 +1021,8 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        td.stack[ply].best_move = best_move;
+
         let noisy_bonus = (115 * depth).min(778) - 50 - 77 * cut_node as i32;
         let noisy_malus = (176 * depth).min(1343) - 51 - 21 * noisy_moves.len() as i32;
 
