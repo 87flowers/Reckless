@@ -484,7 +484,8 @@ fn search<NODE: NodeType>(
         && tt_depth >= depth - 3
         && tt_bound != Bound::Upper
         && is_valid(tt_score)
-        && !is_decisive(tt_score);
+        && !is_decisive(tt_score)
+        && td.board.is_legal(tt_move);
 
     let improvement = if in_check {
         0
