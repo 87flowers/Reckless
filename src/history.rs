@@ -118,7 +118,7 @@ impl Default for NoisyHistory {
 
 pub struct CorrectionHistory {
     // [side_to_move][key]
-    entries: Box<[[[AtomicI16; Self::SIZE]; 2]; 16]>,
+    entries: Box<[[[AtomicI16; Self::SIZE]; 2]; 7]>,
 }
 
 impl CorrectionHistory {
