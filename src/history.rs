@@ -212,6 +212,31 @@ impl Default for ContinuationHistory {
     }
 }
 
+pub struct SequenceHistory {
+    entries: Box<[PieceToHistory<i16>; Self::ENTRY_COUNT]>,
+}
+
+impl SequenceHistory {
+    const ENTRY_COUNT: usize = 65536;
+    const MAX_HISTORY: i32 = 16384;
+
+    pub fn get(&self, sequence_hash: u64, piece: Piece, to: Square) -> i32 {
+        let entry = self.entries[sequence_hash as usize % Self::ENTRY_COUNT][piece][to];
+        entry as i32
+    }
+
+    pub fn update(&mut self, sequence_hash: u64, piece: Piece, to: Square, bonus: i32) {
+        let entry = &mut self.entries[sequence_hash as usize % Self::ENTRY_COUNT][piece][to];
+        apply_bonus::<{ Self::MAX_HISTORY }>(entry, bonus);
+    }
+}
+
+impl Default for SequenceHistory {
+    fn default() -> Self {
+        Self { entries: zeroed_box() }
+    }
+}
+
 fn zeroed_box<T>() -> Box<T> {
     unsafe {
         let layout = std::alloc::Layout::new::<T>();

@@ -212,13 +212,15 @@ impl MovePicker {
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
-            let pt = td.board.type_on(mv.from());
+            let piece = td.board.piece_on(mv.from());
+            let pt = piece.piece_type();
 
             entry.score = 2048 * td.quiet_history.get(threats, side, mv) / 1024
                 + 1536 * td.conthist(ply, 1, mv) / 1024
                 + td.conthist(ply, 2, mv)
                 + td.conthist(ply, 4, mv)
                 + td.conthist(ply, 6, mv)
+                + if ply > 2 { td.sequence_history.get(td.sequence(2), piece, mv.to()) } else { 0 }
                 + escape[pt] * threatened[pt].contains(mv.from()) as i32
                 + 9325 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 7584 * threatened[pt].contains(mv.to()) as i32
