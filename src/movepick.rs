@@ -1,7 +1,11 @@
 use crate::{
     lookup::king_attacks,
     search::NodeType,
-    setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
+    setwise::{
+        bishop_attacks_setwise, bishop_multiattacks_setwise, knight_attacks_setwise, knight_multiattacks_setwise,
+        pawn_attacks_setwise, pawn_multiattacks_setwise, queen_multiattacks_setwise, rook_attacks_setwise,
+        rook_multiattacks_setwise,
+    },
     thread::ThreadData,
     types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
 };
@@ -12,6 +16,7 @@ pub enum Stage {
     GenerateNoisy,
     GoodNoisy,
     GenerateQuiet,
+    GenerateTacticalQuiets,
     Quiet,
     BadNoisy,
 }
@@ -21,6 +26,7 @@ pub struct MovePicker {
     tt_move: Move,
     threshold: Option<i32>,
     stage: Stage,
+    tactical_quiets_only: bool,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
     bad_noisy_idx: usize,
 }
@@ -32,6 +38,7 @@ impl MovePicker {
             tt_move,
             threshold: None,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
+            tactical_quiets_only: false,
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
         }
@@ -43,6 +50,7 @@ impl MovePicker {
             tt_move: Move::NULL,
             threshold: Some(threshold),
             stage: Stage::GenerateNoisy,
+            tactical_quiets_only: true,
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
         }
@@ -54,6 +62,7 @@ impl MovePicker {
             tt_move: Move::NULL,
             threshold: None,
             stage: Stage::GenerateNoisy,
+            tactical_quiets_only: false,
             bad_noisy: ArrayVec::new(),
             bad_noisy_idx: 0,
         }
@@ -100,9 +109,17 @@ impl MovePicker {
 
             if skip_quiets {
                 self.stage = Stage::BadNoisy;
+            } else if self.tactical_quiets_only {
+                self.stage = Stage::GenerateTacticalQuiets;
             } else {
                 self.stage = Stage::GenerateQuiet;
             }
+        }
+
+        if self.stage == Stage::GenerateTacticalQuiets {
+            self.stage = Stage::Quiet;
+            td.board.append_quiet_moves(&mut self.list);
+            self.score_tactical_quiet(td);
         }
 
         if self.stage == Stage::GenerateQuiet {
@@ -115,7 +132,7 @@ impl MovePicker {
             if !skip_quiets {
                 while !self.list.is_empty() {
                     let entry = self.get_best_entry();
-                    if entry.mv == self.tt_move {
+                    if entry.mv == self.tt_move || entry.mv.is_null() {
                         continue;
                     }
 
@@ -165,6 +182,33 @@ impl MovePicker {
                 + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
                 + 4000 * (mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen) as i32
                 + (200000 - 20000 * pt as i32) * td.board.in_check() as i32;
+        }
+    }
+
+    fn score_tactical_quiet(&mut self, td: &ThreadData) {
+        let threats = td.board.all_threats();
+        let side = td.board.side_to_move();
+        let occupancies = td.board.occupancies();
+        let opponent_non_pawn = td.board.colors(!side) & !td.board.pieces(PieceType::Pawn);
+
+        let p = pawn_multiattacks_setwise(opponent_non_pawn, !side) & !threats;
+        let n = knight_multiattacks_setwise(opponent_non_pawn) & !threats;
+        let b = bishop_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let r = rook_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let q = queen_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
+
+        let dests = [p, n, b, r, q, Bitboard(0)];
+
+        for entry in self.list.iter_mut() {
+            let mv = entry.mv;
+            let pt = td.board.type_on(mv.from());
+
+            if !dests[pt as usize].contains(mv.to()) {
+                entry.mv = Move::NULL;
+                continue;
+            }
+
+            entry.score = td.quiet_history.get(threats, side, mv);
         }
     }
 
