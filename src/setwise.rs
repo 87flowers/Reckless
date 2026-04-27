@@ -21,18 +21,6 @@ pub fn pawn_attacks_setwise(bb: Bitboard, color: Color) -> Bitboard {
     right_attacks | left_attacks
 }
 
-pub fn pawn_multiattacks_setwise(bb: Bitboard, color: Color) -> Bitboard {
-    let (up_right, up_left) = match color {
-        Color::White => (9, 7),
-        Color::Black => (-7, -9),
-    };
-
-    let right_attacks = (bb & !Bitboard::file(File::H)).shift(up_right);
-    let left_attacks = (bb & !Bitboard::file(File::A)).shift(up_left);
-
-    right_attacks & left_attacks
-}
-
 #[cfg(not(target_feature = "avx2"))]
 #[inline]
 pub fn knight_attacks_setwise(bb: Bitboard) -> Bitboard {
@@ -74,20 +62,6 @@ pub fn knight_attacks_setwise(bb: Bitboard) -> Bitboard {
     }
 }
 
-pub fn knight_multiattacks_setwise(bb: Bitboard) -> Bitboard {
-    let mut multi = Bitboard(0);
-    let mut attacks = Bitboard(0);
-    multiattack_add(&mut multi, &mut attacks, (bb & !(A | B | R8)).shift(6));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(A | R7 | R8)).shift(15));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(H | R7 | R8)).shift(17));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(G | H | R8)).shift(10));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(G | H | R1)).shift(-6));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(H | R1 | R2)).shift(-15));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(A | R1 | R2)).shift(-17));
-    multiattack_add(&mut multi, &mut attacks, (bb & !(A | B | R1)).shift(-10));
-    multi
-}
-
 #[cfg(not(target_feature = "avx2"))]
 #[inline]
 pub fn bishop_attacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
@@ -119,17 +93,6 @@ pub fn bishop_attacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
 
         fold_to_bitboard(attacks)
     }
-}
-
-pub fn bishop_multiattacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
-    use crate::lookup::bishop_attacks;
-
-    let mut multi = Bitboard(0);
-    let mut attacks = Bitboard(0);
-    for square in bb {
-        multiattack_add(&mut multi, &mut attacks, bishop_attacks(square, occupancies));
-    }
-    multi
 }
 
 #[cfg(not(target_feature = "avx2"))]
@@ -165,29 +128,6 @@ pub fn rook_attacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
     }
 }
 
-pub fn rook_multiattacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
-    use crate::lookup::rook_attacks;
-
-    let mut multi = Bitboard(0);
-    let mut attacks = Bitboard(0);
-    for square in bb {
-        multiattack_add(&mut multi, &mut attacks, rook_attacks(square, occupancies));
-    }
-    multi
-}
-
-pub fn queen_multiattacks_setwise(bb: Bitboard, occupancies: Bitboard) -> Bitboard {
-    use crate::lookup::{bishop_attacks, rook_attacks};
-
-    let mut multi = Bitboard(0);
-    let mut attacks = Bitboard(0);
-    for square in bb {
-        multiattack_add(&mut multi, &mut attacks, rook_attacks(square, occupancies));
-        multiattack_add(&mut multi, &mut attacks, bishop_attacks(square, occupancies));
-    }
-    multi
-}
-
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 #[inline]
 unsafe fn shiftv<const A: i64, const B: i64, const C: i64, const D: i64>(
@@ -219,9 +159,4 @@ unsafe fn fold_to_bitboard(vector: core::arch::x86_64::__m256i) -> Bitboard {
     let vector = _mm_or_si128(_mm256_castsi256_si128(vector), _mm256_extracti128_si256::<1>(vector));
     let result = _mm_extract_epi64::<0>(vector) | _mm_extract_epi64::<1>(vector);
     Bitboard(result as u64)
-}
-
-fn multiattack_add(multi: &mut Bitboard, attacks: &mut Bitboard, add: Bitboard) {
-    *multi |= *attacks & add;
-    *attacks |= add;
 }

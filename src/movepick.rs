@@ -1,11 +1,7 @@
 use crate::{
     lookup::king_attacks,
     search::NodeType,
-    setwise::{
-        bishop_attacks_setwise, bishop_multiattacks_setwise, knight_attacks_setwise, knight_multiattacks_setwise,
-        pawn_attacks_setwise, pawn_multiattacks_setwise, queen_multiattacks_setwise, rook_attacks_setwise,
-        rook_multiattacks_setwise,
-    },
+    setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     thread::ThreadData,
     types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
 };
@@ -189,13 +185,13 @@ impl MovePicker {
         let threats = td.board.all_threats();
         let side = td.board.side_to_move();
         let occupancies = td.board.occupancies();
-        let opponent_non_pawn = td.board.colors(!side) & !td.board.pieces(PieceType::Pawn);
+        let opponent_non_pawn = td.board.colors(!side) & !td.board.pieces2(PieceType::Pawn, PieceType::King);
 
-        let p = pawn_multiattacks_setwise(opponent_non_pawn, !side) & !threats;
-        let n = knight_multiattacks_setwise(opponent_non_pawn) & !threats;
-        let b = bishop_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
-        let r = rook_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
-        let q = queen_multiattacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let p = pawn_attacks_setwise(opponent_non_pawn, !side) & !threats;
+        let n = knight_attacks_setwise(opponent_non_pawn) & !threats;
+        let b = bishop_attacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let r = rook_attacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let q = b | r;
 
         let dests = [p, n, b, r, q, Bitboard(0)];
 
@@ -203,7 +199,7 @@ impl MovePicker {
             let mv = entry.mv;
             let pt = td.board.type_on(mv.from());
 
-            if !dests[pt as usize].contains(mv.to()) {
+            if !dests[pt as usize].contains(mv.to()) && !td.board.is_direct_check(mv) {
                 entry.mv = Move::NULL;
                 continue;
             }
