@@ -668,7 +668,11 @@ fn search<NODE: NodeType>(
             extension += (singular_score < singular_beta - triple_margin) as i32;
         }
         // Multi-Cut
-        else if singular_score >= beta && !is_decisive(singular_score) {
+        else if is_decisive(singular_score)
+            && (is_win(singular_score) || tt_move.is_null() || !td.board.is_legal(tt_move))
+        {
+            return singular_score;
+        } else if singular_score >= beta && !is_decisive(singular_score) {
             return (2 * singular_score + beta) / 3;
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
