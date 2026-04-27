@@ -1302,7 +1302,7 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
     let bucket = td.board.halfmove_clock_bucket();
     let corrhist = td.corrhist();
 
-    (corrhist.pawn.get(stm, td.board.pawn_key(), bucket)
+    (corrhist.pawn.get(stm, td.board.pawn_corrhist_key(), bucket)
         + corrhist.non_pawn[Color::White].get(stm, td.board.non_pawn_key(Color::White), bucket)
         + corrhist.non_pawn[Color::Black].get(stm, td.board.non_pawn_key(Color::Black), bucket)
         + td.continuation_corrhist.get(
@@ -1324,7 +1324,7 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
     let corrhist = td.corrhist();
     let bonus = (142 * depth * diff / 128).clamp(-4771, 3001);
 
-    corrhist.pawn.update(stm, td.board.pawn_key(), bucket, bonus);
+    corrhist.pawn.update(stm, td.board.pawn_corrhist_key(), bucket, bonus);
 
     corrhist.non_pawn[Color::White].update(stm, td.board.non_pawn_key(Color::White), bucket, bonus);
     corrhist.non_pawn[Color::Black].update(stm, td.board.non_pawn_key(Color::Black), bucket, bonus);

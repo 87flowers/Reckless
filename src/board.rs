@@ -91,6 +91,26 @@ impl Board {
         self.state.pawn_key
     }
 
+    pub fn pawn_corrhist_key(&self) -> u64 {
+        self.state
+            .pawn_key
+            .wrapping_add(
+                ((self.state.piece_threats[PieceType::Knight] & self.pieces(PieceType::Pawn)).0 as u128
+                    * 0x21D49EDF0826682
+                    >> 64) as u64,
+            )
+            .wrapping_add(
+                ((self.state.piece_threats[PieceType::Bishop] & self.pieces(PieceType::Pawn)).0 as u128
+                    * 0xCA62805892BED62E
+                    >> 64) as u64,
+            )
+            .wrapping_add(
+                ((self.state.piece_threats[PieceType::Rook] & self.pieces(PieceType::Pawn)).0 as u128
+                    * 0xA1DC7A309917E130
+                    >> 64) as u64,
+            )
+    }
+
     pub const fn non_pawn_key(&self, color: Color) -> u64 {
         self.state.non_pawn_keys[color as usize]
     }
