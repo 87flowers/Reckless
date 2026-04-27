@@ -677,6 +677,8 @@ fn search<NODE: NodeType>(
         else if tt_score >= beta || cut_node {
             extension = -2;
         }
+    } else if depth < 8 && !in_check && raw_eval < alpha - 24 && tt_bound == Bound::Lower {
+        extension = 1;
     }
 
     let mut best_move = Move::NULL;
