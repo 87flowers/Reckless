@@ -91,6 +91,12 @@ impl Board {
         self.state.pawn_key
     }
 
+    pub fn pawn_corrhist_key(&self) -> u64 {
+        self.state.pawn_key.wrapping_add(
+            ((self.state.all_threats & self.pieces(PieceType::Pawn)).0 as u128 * 0x21D49EDF0826682 >> 64) as u64,
+        )
+    }
+
     pub const fn non_pawn_key(&self, color: Color) -> u64 {
         self.state.non_pawn_keys[color as usize]
     }
