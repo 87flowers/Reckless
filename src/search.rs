@@ -965,7 +965,7 @@ fn search<NODE: NodeType>(
         if score > best_score {
             best_score = score;
 
-            if score > alpha {
+            if score > alpha || (score == alpha && td.nodes() % 16 == 0) {
                 bound = Bound::Exact;
                 best_move = mv;
 
