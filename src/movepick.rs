@@ -185,12 +185,12 @@ impl MovePicker {
         let threats = td.board.all_threats();
         let side = td.board.side_to_move();
         let occupancies = td.board.occupancies();
-        let opponent_non_pawn = td.board.colors(!side) & !td.board.pieces2(PieceType::Pawn, PieceType::King);
+        let victims = td.board.colors(!side) & !td.board.pieces2(PieceType::Pawn, PieceType::King) & !threats;
 
-        let p = pawn_attacks_setwise(opponent_non_pawn, !side) & !threats;
-        let n = knight_attacks_setwise(opponent_non_pawn) & !threats;
-        let b = bishop_attacks_setwise(opponent_non_pawn, occupancies) & !threats;
-        let r = rook_attacks_setwise(opponent_non_pawn, occupancies) & !threats;
+        let p = pawn_attacks_setwise(victims, !side) & !threats;
+        let n = knight_attacks_setwise(victims) & !threats;
+        let b = bishop_attacks_setwise(victims, occupancies) & !threats;
+        let r = rook_attacks_setwise(victims, occupancies) & !threats;
         let q = b | r;
 
         let dests = [p, n, b, r, q, Bitboard(0)];
