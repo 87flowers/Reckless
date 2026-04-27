@@ -802,6 +802,7 @@ fn search<NODE: NodeType>(
                 reduction -= 361;
                 reduction -= 636 * (is_valid(tt_score) && tt_score > alpha) as i32;
                 reduction -= 830 * (is_valid(tt_score) && tt_depth >= depth) as i32;
+                reduction -= 1024 * (mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen) as i32;
             }
 
             if !tt_pv && cut_node {
@@ -871,6 +872,7 @@ fn search<NODE: NodeType>(
             if tt_pv {
                 reduction -= 936;
                 reduction -= 1080 * (is_valid(tt_score) && tt_depth >= depth) as i32;
+                reduction -= 1024 * (mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen) as i32;
             }
 
             if !tt_pv && cut_node {
