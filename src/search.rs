@@ -962,10 +962,11 @@ fn search<NODE: NodeType>(
             tt_move_score = score;
         }
 
-        if score > best_score {
+        let consider_equal = td.nodes() % 16 == 0;
+        if score > best_score || (score == best_score && consider_equal) {
             best_score = score;
 
-            if score > alpha || (score == alpha && td.nodes() % 16 == 0) {
+            if score > alpha || (score == alpha && consider_equal && best_score != -Score::INFINITE) {
                 bound = Bound::Exact;
                 best_move = mv;
 
