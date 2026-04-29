@@ -667,6 +667,14 @@ fn search<NODE: NodeType>(
         else if singular_score >= beta && !is_decisive(singular_score) {
             return (2 * singular_score + beta) / 3;
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
+            if tt_move.is_quiet() {
+                let quiet_malus = (156 * singular_depth).min(1065) - 45;
+                let cont_malus = (371 * singular_depth).min(914) - 44;
+
+                td.quiet_history.update(td.board.all_threats(), stm, tt_move, -quiet_malus);
+                update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), -cont_malus);
+            }
+
             tt_move = Move::NULL;
         }
         // Negative Extensions
