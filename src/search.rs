@@ -1095,7 +1095,7 @@ fn search<NODE: NodeType>(
     }
 
     if !(in_check
-        || best_move.is_noisy()
+        || (best_move.is_noisy() && td.board.see(best_move, -50))
         || (bound == Bound::Upper && best_score >= eval)
         || (bound == Bound::Lower && best_score <= eval))
     {
