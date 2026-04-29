@@ -68,7 +68,18 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
     let mut soft_stop_voted = false;
 
     // Iterative Deepening
-    for depth in 1..MAX_PLY as i32 {
+    let mut depth: i32 = 0;
+    loop {
+        depth += 1;
+
+        if td.id != 0 && (td.id + depth as usize) % 8 == 0 {
+            depth += 1;
+        }
+
+        if depth >= MAX_PLY as i32 {
+            break;
+        }
+
         if td.id == 0
             && let Limits::Depth(maximum) = td.time_manager.limits()
             && depth > maximum
