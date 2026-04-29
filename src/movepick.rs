@@ -9,9 +9,11 @@ use crate::{
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
     HashMove,
-    NextMove,
+    GetNextMove,
     GenerateNoisy,
     GoodNoisy,
+    NextMove,
+    GenerateQuiet,
     Quiet,
     BadNoisy,
 }
@@ -70,21 +72,19 @@ impl MovePicker {
     pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
         if self.stage == Stage::HashMove {
             if td.board.is_legal(self.tt_move) {
-                self.stage = Stage::NextMove;
+                self.stage = Stage::GetNextMove;
                 return Some(self.tt_move);
             } else {
                 self.stage = Stage::GenerateNoisy;
             }
         }
 
-        if self.stage == Stage::NextMove {
-            self.stage = Stage::GenerateNoisy;
-
+        if self.stage == Stage::GetNextMove {
             let mv = td.stack[ply + 1].best_move_next_move;
-            if td.board.is_legal(mv) {
+            if mv.is_quiet() {
                 self.nm_move = mv;
-                return Some(mv);
             }
+            self.stage = Stage::GenerateNoisy;
         }
 
         if self.stage == Stage::GenerateNoisy {
@@ -96,7 +96,7 @@ impl MovePicker {
         if self.stage == Stage::GoodNoisy {
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
-                if entry.mv == self.tt_move || entry.mv == self.nm_move {
+                if entry.mv == self.tt_move {
                     continue;
                 }
 
@@ -116,10 +116,21 @@ impl MovePicker {
             if skip_quiets {
                 self.stage = Stage::BadNoisy;
             } else {
-                self.stage = Stage::Quiet;
-                td.board.append_quiet_moves(&mut self.list);
-                self.score_quiet(td, ply);
+                self.stage = Stage::NextMove;
             }
+        }
+
+        if self.stage == Stage::NextMove {
+            self.stage = Stage::GenerateQuiet;
+            if td.board.is_legal(self.nm_move) {
+                return Some(self.nm_move);
+            }
+        }
+
+        if self.stage == Stage::GenerateQuiet {
+            td.board.append_quiet_moves(&mut self.list);
+            self.score_quiet(td, ply);
+            self.stage = Stage::Quiet;
         }
 
         if self.stage == Stage::Quiet {
