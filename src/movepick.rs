@@ -9,6 +9,7 @@ use crate::{
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
     HashMove,
+    NextMove,
     GenerateNoisy,
     GoodNoisy,
     Quiet,
@@ -64,10 +65,20 @@ impl MovePicker {
 
     pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
         if self.stage == Stage::HashMove {
+            if td.board.is_legal(self.tt_move) {
+                self.stage = Stage::NextMove;
+                return Some(self.tt_move);
+            } else {
+                self.stage = Stage::GenerateNoisy;
+            }
+        }
+
+        if self.stage == Stage::NextMove {
             self.stage = Stage::GenerateNoisy;
 
-            if td.board.is_legal(self.tt_move) {
-                return Some(self.tt_move);
+            let mv = td.stack[ply + 1].best_move_next_move;
+            if td.board.is_legal(mv) {
+                return Some(mv);
             }
         }
 

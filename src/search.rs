@@ -255,6 +255,9 @@ fn search<NODE: NodeType>(
     debug_assert!(-Score::INFINITE <= alpha && alpha < beta && beta <= Score::INFINITE);
     debug_assert!(NODE::PV || alpha == beta - 1);
 
+    td.stack[ply].best_move = Move::NULL;
+    td.stack[ply].best_move_next_move = Move::NULL;
+
     let stm = td.board.side_to_move();
     let in_check = td.board.in_check();
     let excluded = td.stack[ply].excluded.is_present();
@@ -677,6 +680,7 @@ fn search<NODE: NodeType>(
 
     let mut best_move = Move::NULL;
     let mut bound = Bound::Upper;
+    let mut best_move_next_move = Move::NULL;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
     let mut noisy_moves = ArrayVec::<Move, 32>::new();
@@ -963,6 +967,7 @@ fn search<NODE: NodeType>(
             if score > alpha {
                 bound = Bound::Exact;
                 best_move = mv;
+                best_move_next_move = td.stack[ply + 1].best_move;
 
                 if !NODE::ROOT && NODE::PV {
                     td.pv_table.update(ply as usize, mv);
@@ -1004,6 +1009,9 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        td.stack[ply].best_move = best_move;
+        td.stack[ply].best_move_next_move = best_move_next_move;
+
         let noisy_bonus = (115 * depth).min(778) - 50 - 77 * cut_node as i32;
         let noisy_malus = (176 * depth).min(1343) - 51 - 21 * noisy_moves.len() as i32;
 
