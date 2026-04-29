@@ -2,38 +2,13 @@ use crate::types::{Bitboard, Color, Piece, PieceType, Square, ZOBRIST};
 
 include!(concat!(env!("OUT_DIR"), "/lookup.rs"));
 
-static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
-static mut RAY_PASS: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
-
 static mut CUCKOO: [u64; 0x2000] = [0; 0x2000];
 static mut A: [Square; 0x2000] = [Square::None; 0x2000];
 static mut B: [Square; 0x2000] = [Square::None; 0x2000];
 
 pub fn initialize() {
     unsafe {
-        init_luts();
         init_cuckoo();
-    }
-}
-
-unsafe fn init_luts() {
-    for a in 0..64 {
-        for b in 0..64 {
-            let a = Square::new(a);
-            let b = Square::new(b);
-
-            if rook_attacks(a, Bitboard(0)).contains(b) {
-                BETWEEN[a][b] = rook_attacks(a, b.to_bb()) & rook_attacks(b, a.to_bb());
-                RAY_PASS[a][b] = rook_attacks(a, Bitboard(0)) & rook_attacks(b, a.to_bb());
-                RAY_PASS[a][b].set(b);
-            }
-
-            if bishop_attacks(a, Bitboard(0)).contains(b) {
-                BETWEEN[a][b] = bishop_attacks(a, b.to_bb()) & bishop_attacks(b, a.to_bb());
-                RAY_PASS[a][b] = bishop_attacks(a, Bitboard(0)) & bishop_attacks(b, a.to_bb());
-                RAY_PASS[a][b].set(b);
-            }
-        }
     }
 }
 
@@ -92,11 +67,11 @@ pub fn cuckoo_b(index: usize) -> Square {
 }
 
 pub fn between(a: Square, b: Square) -> Bitboard {
-    unsafe { BETWEEN[a as usize][b as usize] }
+    Bitboard(BETWEEN[a as usize][b as usize])
 }
 
 pub fn ray_pass(a: Square, b: Square) -> Bitboard {
-    unsafe { RAY_PASS[a as usize][b as usize] }
+    Bitboard(RAY_PASS[a as usize][b as usize])
 }
 
 pub fn diagonal(sq: Square) -> Bitboard {
