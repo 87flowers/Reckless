@@ -19,6 +19,7 @@ pub enum Stage {
 pub struct MovePicker {
     list: MoveList,
     tt_move: Move,
+    nm_move: Move,
     threshold: Option<i32>,
     stage: Stage,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
@@ -30,6 +31,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move,
+            nm_move: Move::NULL,
             threshold: None,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
@@ -41,6 +43,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            nm_move: Move::NULL,
             threshold: Some(threshold),
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -52,6 +55,7 @@ impl MovePicker {
         Self {
             list: MoveList::new(),
             tt_move: Move::NULL,
+            nm_move: Move::NULL,
             threshold: None,
             stage: Stage::GenerateNoisy,
             bad_noisy: ArrayVec::new(),
@@ -78,6 +82,7 @@ impl MovePicker {
 
             let mv = td.stack[ply + 1].best_move_next_move;
             if td.board.is_legal(mv) {
+                self.nm_move = mv;
                 return Some(mv);
             }
         }
@@ -91,7 +96,7 @@ impl MovePicker {
         if self.stage == Stage::GoodNoisy {
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
-                if entry.mv == self.tt_move {
+                if entry.mv == self.tt_move || entry.mv == self.nm_move {
                     continue;
                 }
 
@@ -121,7 +126,7 @@ impl MovePicker {
             if !skip_quiets {
                 while !self.list.is_empty() {
                     let entry = self.get_best_entry();
-                    if entry.mv == self.tt_move {
+                    if entry.mv == self.tt_move || entry.mv == self.nm_move {
                         continue;
                     }
 
