@@ -458,18 +458,25 @@ fn search<NODE: NodeType>(
     }
 
     // Hindsight reductions
-    if !NODE::ROOT && !in_check && !excluded && is_valid(td.stack[ply - 1].eval) {
+    let hindsight = if !NODE::ROOT && !in_check && !excluded && is_valid(td.stack[ply - 1].eval) {
+        let mut hindsight = 0;
+
         let eval_delta = eval + td.stack[ply - 1].eval;
         let reduction = td.stack[ply - 1].reduction;
 
         if reduction >= 2367 && eval_delta < 0 {
-            depth += 1;
+            hindsight += 1;
         }
 
         if !tt_pv && depth >= 2 && reduction > 0 && eval_delta > 59 {
-            depth -= 1;
+            hindsight -= 1;
         }
-    }
+
+        hindsight
+    } else {
+        0
+    };
+    depth += hindsight;
 
     let potential_singularity = depth >= 5 + tt_pv as i32
         && tt_depth >= depth - 3
@@ -1054,7 +1061,8 @@ fn search<NODE: NodeType>(
                 + 202 * (td.stack[ply - 1].move_count > 7) as i32
                 + 116 * (prior_move == td.stack[ply - 1].tt_move) as i32
                 + 138 * (!in_check && best_score <= eval - 93) as i32
-                + 321 * (is_valid(td.stack[ply - 1].eval) && best_score <= -td.stack[ply - 1].eval - 128) as i32;
+                + 321 * (is_valid(td.stack[ply - 1].eval) && best_score <= -td.stack[ply - 1].eval - 128) as i32
+                + 128 * (hindsight > 0) as i32;
 
             let scaled_bonus = factor * (165 * depth - 35).min(2467) / 128;
 
