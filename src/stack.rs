@@ -35,6 +35,8 @@ impl Default for Stack {
 #[derive(Copy, Clone)]
 pub struct StackEntry {
     pub mv: Move,
+    pub best_move: Move,
+    pub best_move_next_move: Move,
     pub piece: Piece,
     pub eval: i32,
     pub excluded: Move,
@@ -53,6 +55,8 @@ impl Default for StackEntry {
     fn default() -> Self {
         Self {
             mv: Move::NULL,
+            best_move: Move::NULL,
+            best_move_next_move: Move::NULL,
             piece: Piece::None,
             eval: Score::NONE,
             excluded: Move::NULL,
