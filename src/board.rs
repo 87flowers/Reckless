@@ -37,6 +37,8 @@ struct InternalState {
     recapture_square: Square,
     piece_threats: [Bitboard; PieceType::NUM],
     all_threats: Bitboard,
+    piece_defends: [Bitboard; PieceType::NUM],
+    all_defended: Bitboard,
     pinned: [Bitboard; Color::NUM],
     pinners: [Bitboard; Color::NUM],
     checkers: Bitboard,
@@ -109,6 +111,14 @@ impl Board {
 
     pub const fn checkers(&self) -> Bitboard {
         self.state.checkers
+    }
+
+    pub const fn all_defended(&self) -> Bitboard {
+        self.state.all_defended
+    }
+
+    pub const fn piece_defends(&self, pt: PieceType) -> Bitboard {
+        self.state.piece_defends[pt as usize]
     }
 
     pub const fn all_threats(&self) -> Bitboard {
@@ -441,6 +451,26 @@ impl Board {
             | self.piece_threats(PieceType::Rook)
             | self.piece_threats(PieceType::Queen)
             | self.piece_threats(PieceType::King);
+
+        self.state.piece_defends[PieceType::Pawn] =
+            pawn_attacks_setwise(self.colored_pieces(stm, PieceType::Pawn), stm);
+        self.state.piece_defends[PieceType::Knight] =
+            knight_attacks_setwise(self.colored_pieces(stm, PieceType::Knight));
+        self.state.piece_defends[PieceType::Bishop] =
+            bishop_attacks_setwise(self.colored_pieces(stm, PieceType::Bishop), occupancies);
+        self.state.piece_defends[PieceType::Rook] =
+            rook_attacks_setwise(self.colored_pieces(stm, PieceType::Rook), occupancies);
+        self.state.piece_defends[PieceType::Queen] =
+            bishop_attacks_setwise(self.colored_pieces(stm, PieceType::Queen), occupancies)
+                | rook_attacks_setwise(self.colored_pieces(stm, PieceType::Queen), occupancies);
+        self.state.piece_defends[PieceType::King] = king_attacks(self.king_square(stm));
+
+        self.state.all_defended = self.piece_defends(PieceType::Pawn)
+            | self.piece_defends(PieceType::Knight)
+            | self.piece_defends(PieceType::Bishop)
+            | self.piece_defends(PieceType::Rook)
+            | self.piece_defends(PieceType::Queen)
+            | self.piece_defends(PieceType::King);
 
         let diagonal = self.pieces2(PieceType::Bishop, PieceType::Queen);
         let orthogonal = self.pieces2(PieceType::Rook, PieceType::Queen);

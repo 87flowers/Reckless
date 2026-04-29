@@ -170,6 +170,7 @@ impl MovePicker {
 
     fn score_quiet(&mut self, td: &ThreadData, ply: isize) {
         let threats = td.board.all_threats();
+        let defended = td.board.all_defended();
         let side = td.board.side_to_move();
         let occupancies = td.board.occupancies();
 
@@ -192,7 +193,7 @@ impl MovePicker {
             let queen_orth_vulnerable = td.board.colored_pieces(!side, PieceType::Bishop) & !threats;
             let queen_diag_vulnerable = td.board.colored_pieces(!side, PieceType::Rook) & !threats;
 
-            let p = pawn_attacks_setwise(td.board.colors(!side), !side) & !threats;
+            let p = pawn_attacks_setwise(td.board.colors(!side), !side) & (!threats | defended);
             let n = knight_attacks_setwise(knight_vulnerable) & !threats;
             let b = bishop_attacks_setwise(bishop_vulnerable, occupancies) & !threats;
             let r = Bitboard::file(td.board.king_square(!side).file()) & !threats;
