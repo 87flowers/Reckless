@@ -517,7 +517,6 @@ fn search<NODE: NodeType>(
                 + (1165 * depth * depth / 128 - (80 * improving as i32)
                     + 25 * depth
                     + 560 * correction_value.abs() / 1024
-                    + 64 * hindsight.abs()
                     - 59 * (td.board.all_threats() & td.board.colors(stm)).is_empty() as i32
                     + 30)
                     .max(0)
@@ -786,6 +785,7 @@ fn search<NODE: NodeType>(
             reduction -= 68 * move_count;
             reduction -= 3297 * correction_value.abs() / 1024;
             reduction += 1306 * (bound == Bound::Exact) as i32;
+            reduction -= 128 * hindsight.abs();
 
             reduction += 546 * (is_valid(tt_score) && tt_score <= alpha) as i32;
             reduction += 322 * (is_valid(tt_score) && tt_depth < depth) as i32;
