@@ -500,7 +500,7 @@ fn search<NODE: NodeType>(
     // Razoring
     if !NODE::PV
         && !in_check
-        && estimated_score < alpha - 295 - 261 * depth * depth - 256 * hindsight.abs()
+        && estimated_score < alpha - 295 - 261 * depth * depth
         && alpha < 2048
         && !tt_move.is_quiet()
         && tt_bound != Bound::Lower
@@ -517,6 +517,7 @@ fn search<NODE: NodeType>(
                 + (1165 * depth * depth / 128 - (80 * improving as i32)
                     + 25 * depth
                     + 560 * correction_value.abs() / 1024
+                    + 64 * hindsight.abs()
                     - 59 * (td.board.all_threats() & td.board.colors(stm)).is_empty() as i32
                     + 30)
                     .max(0)
