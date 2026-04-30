@@ -458,18 +458,26 @@ fn search<NODE: NodeType>(
     }
 
     // Hindsight reductions
-    if !NODE::ROOT && !in_check && !excluded && is_valid(td.stack[ply - 1].eval) {
+    let hindsight: i32 = if !NODE::ROOT && !in_check && !excluded && is_valid(td.stack[ply - 1].eval) {
+        let mut hindsight = 0;
+
         let eval_delta = eval + td.stack[ply - 1].eval;
         let reduction = td.stack[ply - 1].reduction;
 
         if reduction >= 2367 && eval_delta < 0 {
             depth += 1;
+            hindsight += 1;
         }
 
         if !tt_pv && depth >= 2 && reduction > 0 && eval_delta > 59 {
             depth -= 1;
+            hindsight -= 1;
         }
-    }
+
+        hindsight
+    } else {
+        0
+    };
 
     let potential_singularity = depth >= 5 + tt_pv as i32
         && tt_depth >= depth - 3
@@ -492,7 +500,7 @@ fn search<NODE: NodeType>(
     // Razoring
     if !NODE::PV
         && !in_check
-        && estimated_score < alpha - 295 - 261 * depth * depth
+        && estimated_score < alpha - 295 - 261 * depth * depth - 256 * hindsight.abs()
         && alpha < 2048
         && !tt_move.is_quiet()
         && tt_bound != Bound::Lower
