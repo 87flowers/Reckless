@@ -9,6 +9,8 @@ use std::{
 mod attacks;
 mod magics;
 mod maps;
+mod zobrist;
+mod zobrist_gen;
 
 const BASE_URL: &str = "https://github.com/codedeliveryservice/RecklessNetworks/releases/download/networks";
 const NETWORK_NAME: &str = "v59-f6f160f4.nnue";
@@ -16,6 +18,7 @@ const NETWORK_NAME: &str = "v59-f6f160f4.nnue";
 fn main() {
     generate_model_env();
     generate_attack_maps();
+    generate_zobrist();
     generate_compiler_info();
     generate_engine_version();
 
@@ -67,10 +70,10 @@ fn generate_attack_maps() {
     let dir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&dir).join("lookup.rs");
     let out = File::create(path).unwrap();
-    write(BufWriter::new(out)).unwrap();
+    write_attack_maps(BufWriter::new(out)).unwrap();
 }
 
-fn write(mut buf: BufWriter<File>) -> Result<(), std::io::Error> {
+fn write_attack_maps(mut buf: BufWriter<File>) -> Result<(), std::io::Error> {
     macro_rules! write_map {
         ($name:tt, $type:tt, $items:expr) => {
             writeln!(buf, "static {}: [{}; {}] = {:?};", $name, $type, $items.len(), $items)?;
@@ -91,6 +94,18 @@ fn write(mut buf: BufWriter<File>) -> Result<(), std::io::Error> {
     write_map!("BISHOP_MAGICS", "MagicEntry", magics::BISHOP_MAGICS);
 
     writeln!(buf, "struct MagicEntry {{ pub mask: u64, pub magic: u64, pub shift: u32, pub offset: u32 }}")
+}
+
+fn generate_zobrist() {
+    let dir = env::var("OUT_DIR").unwrap();
+    let path = Path::new(&dir).join("zobrist.rs");
+    let out = File::create(path).unwrap();
+    write_zobrist(BufWriter::new(out)).unwrap();
+}
+
+fn write_zobrist(mut buf: BufWriter<File>) -> Result<(), std::io::Error> {
+    writeln!(buf, "{}", include_str!("zobrist.rs"))?;
+    writeln!(buf, "pub const ZOBRIST: Zobrist = {:?};", zobrist_gen::generate_zobrist())
 }
 
 fn download_network() {
