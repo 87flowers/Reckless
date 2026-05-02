@@ -757,6 +757,11 @@ fn search<NODE: NodeType>(
                 break;
             }
 
+            // History Pruning (HP)
+            if !in_check && depth < 3 && history < -200 && is_quiet && !td.board.is_direct_check(mv) {
+                continue;
+            }
+
             // Static Exchange Evaluation Pruning (SEE Pruning)
             let threshold = if is_quiet {
                 (-17 * depth * depth + 52 * depth - 21 * history / 1024 + 20).min(0)
