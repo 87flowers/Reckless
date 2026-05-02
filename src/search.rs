@@ -758,7 +758,7 @@ fn search<NODE: NodeType>(
             }
 
             // History Pruning (HP)
-            if !in_check && depth < 3 && history < -200 && is_quiet && !td.board.is_direct_check(mv) {
+            if !in_check && depth < 3 && history < -2000 && is_quiet && !td.board.is_direct_check(mv) {
                 continue;
             }
 
