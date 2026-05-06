@@ -1,6 +1,9 @@
 use crate::{
     board::Board,
-    lookup::{attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
+    lookup::{
+        attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, piece_rays, ray_dir, ray_pass,
+        rook_attacks,
+    },
     nnue::accumulator::threats::{ThreatAccumulator, ThreatDelta},
     types::{Bitboard, Color, Piece, PieceType, Square},
 };
@@ -22,7 +25,12 @@ fn push_threats_single(
 
     let attacked = attacks(piece, square, occupancies) & occupancies;
     for to in attacked {
-        deltas.push(ThreatDelta::new(piece, square, board.piece_on(to), to, add));
+        deltas.push(ThreatDelta::new_threat(piece, square, board.piece_on(to), to, add));
+    }
+    for (dir, ray) in piece_rays(piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(piece, square, *dir, add));
+        }
     }
 
     let rook_attacks = rook_attacks(square, occupancies);
@@ -34,13 +42,15 @@ fn push_threats_single(
 
     for from in (diagonal | orthogonal) & occupancies {
         let sliding_piece = board.piece_on(from);
-        let threatened = ray_pass(from, square) & occupancies & queen_attacks;
+        let discovery_ray = ray_pass(from, square) & occupancies & queen_attacks;
 
-        if let Some(to) = threatened.into_iter().next() {
-            deltas.push(ThreatDelta::new(sliding_piece, from, board.piece_on(to), to, !add));
+        if let Some(to) = discovery_ray.into_iter().next() {
+            deltas.push(ThreatDelta::new_threat(sliding_piece, from, board.piece_on(to), to, !add));
+        } else {
+            deltas.push(ThreatDelta::new_lack(sliding_piece, from, ray_dir(from, square), !add));
         }
 
-        deltas.push(ThreatDelta::new(sliding_piece, from, piece, square, add));
+        deltas.push(ThreatDelta::new_threat(sliding_piece, from, piece, square, add));
     }
 
     let black_pawns = board.colored_pieces(Color::Black, PieceType::Pawn) & pawn_attacks(square, Color::White);
@@ -50,7 +60,7 @@ fn push_threats_single(
     let kings = board.pieces(PieceType::King) & king_attacks(square);
 
     for from in (black_pawns | white_pawns | knights | kings) & occupancies {
-        deltas.push(ThreatDelta::new(board.piece_on(from), from, piece, square, add));
+        deltas.push(ThreatDelta::new_threat(board.piece_on(from), from, piece, square, add));
     }
 }
 
@@ -63,11 +73,21 @@ pub fn push_threats_on_mutate(
 
     let attacked = attacks(old_piece, square, occupancies) & occupancies;
     for to in attacked {
-        deltas.push(ThreatDelta::new(old_piece, square, board.piece_on(to), to, false));
+        deltas.push(ThreatDelta::new_threat(old_piece, square, board.piece_on(to), to, false));
+    }
+    for (dir, ray) in piece_rays(old_piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(old_piece, square, *dir, false));
+        }
     }
     let attacked = attacks(new_piece, square, occupancies) & occupancies;
     for to in attacked {
-        deltas.push(ThreatDelta::new(new_piece, square, board.piece_on(to), to, true));
+        deltas.push(ThreatDelta::new_threat(new_piece, square, board.piece_on(to), to, true));
+    }
+    for (dir, ray) in piece_rays(new_piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(new_piece, square, *dir, true));
+        }
     }
 
     let rook_attacks = rook_attacks(square, occupancies);
@@ -83,7 +103,7 @@ pub fn push_threats_on_mutate(
     let kings = board.pieces(PieceType::King) & king_attacks(square);
 
     for from in black_pawns | white_pawns | knights | kings | diagonal | orthogonal {
-        deltas.push(ThreatDelta::new(board.piece_on(from), from, old_piece, square, false));
-        deltas.push(ThreatDelta::new(board.piece_on(from), from, new_piece, square, true));
+        deltas.push(ThreatDelta::new_threat(board.piece_on(from), from, old_piece, square, false));
+        deltas.push(ThreatDelta::new_threat(board.piece_on(from), from, new_piece, square, true));
     }
 }

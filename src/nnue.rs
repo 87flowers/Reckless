@@ -177,10 +177,11 @@ impl Network {
                 None => self.pst_stack[self.index].refresh(board, pov, &mut self.cache, self.parameters.as_ref()),
             }
 
-            match self.can_update_threats(pov) {
-                Some(index) => self.update_threat_accumulator(index, board, pov),
-                None => self.threat_stack[self.index].refresh(board, pov, self.parameters.as_ref()),
-            }
+            // match self.can_update_threats(pov) {
+            //     Some(index) => self.update_threat_accumulator(index, board, pov),
+            //     None => self.threat_stack[self.index].refresh(board, pov, self.parameters.as_ref()),
+            // }
+            self.threat_stack[self.index].refresh(board, pov, self.parameters.as_ref());
         }
 
         self.output_transformer(board)

@@ -1,6 +1,6 @@
 use crate::{
-    lookup::attacks,
-    types::{Bitboard, Color, Piece, PieceType, Square},
+    lookup::{attacks, piece_rays},
+    types::{Bitboard, Color, Direction, Piece, PieceType, Square},
 };
 
 #[derive(Copy, Clone)]
@@ -29,6 +29,16 @@ impl PiecePair {
 static mut PIECE_PAIR_LOOKUP: [[PiecePair; 12]; 12] = [[PiecePair { inner: 0 }; 12]; 12];
 static mut PIECE_OFFSET_LOOKUP: [[i32; 64]; 12] = [[0; 64]; 12];
 static mut ATTACK_INDEX_LOOKUP: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
+static mut PIECE_LACK_LOOKUP: [i32; 12] = [0; 12];
+const LACK_DIR_LOOKUP: [[i32; 8]; 6] = [
+    // Order: N, NE, E, SE, S, SW, W, NW
+    [-1, -1, -1, -1, -1, -1, -1, -1],      // Pawn
+    [-1, -1, -1, -1, -1, -1, -1, -1],      // Knight
+    [-1, 0, -1, 128, -1, 192, -1, 64],     // Bishop
+    [0, -1, 64, -1, 128, -1, 192, -1],     // Rook
+    [0, 256, 64, 384, 128, 448, 192, 320], // Queen
+    [-1, -1, -1, -1, -1, -1, -1, -1],      // King
+];
 
 pub fn initialize() {
     #[rustfmt::skip]
@@ -66,8 +76,15 @@ pub fn initialize() {
             offset_table[piece] = offset;
 
             offset += PIECE_TARGET_COUNT[piece_type] * count;
+
+            unsafe { PIECE_LACK_LOOKUP[piece] = offset };
+            // println!("{} {}", piece, offset);
+
+            offset += piece_rays(piece_type).len() as i32 * 64;
         }
     }
+
+    assert_eq!(offset, 68912);
 
     for attacking in Piece::ALL {
         for attacked in Piece::ALL {
@@ -113,5 +130,27 @@ pub fn threat_index(piece: Piece, from: Square, attacked: Piece, to: Square, mir
         pair.base(from, to)
             + PIECE_OFFSET_LOOKUP[attacking][from] as isize
             + ATTACK_INDEX_LOOKUP[attacking][from][to] as isize
+    }
+}
+
+pub fn lack_index(piece: Piece, from: Square, dir: Direction, mirrored: bool, pov: Color) -> isize {
+    // print!("{piece} {from} {:?} {mirrored} {pov} - ", dir);
+    // print!("{} {}", from.relative_to(pov), from.relative_to(pov) ^ (7 * (mirrored as u8)));
+    let from = from.relative_to(pov) ^ (7 * (mirrored as u8));
+
+    let attacking = (piece as usize) ^ (pov as usize);
+
+    let dir = dir as u8;
+    let dir = if pov == Color::Black { 4u8.wrapping_sub(dir) % 8 } else { dir };
+    let dir = if mirrored { 8u8.wrapping_sub(dir) % 8 } else { dir };
+
+    // println!(" - {} {} {:?}", from, dir, unsafe { std::mem::transmute::<u8, Direction>(dir) });
+
+    debug_assert!([PieceType::Bishop, PieceType::Rook, PieceType::Queen].contains(&piece.piece_type()));
+
+    unsafe {
+        PIECE_LACK_LOOKUP[attacking] as isize
+            + LACK_DIR_LOOKUP[piece.piece_type()][dir as usize] as isize
+            + from as isize
     }
 }

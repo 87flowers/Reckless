@@ -1,9 +1,10 @@
-use crate::types::{Bitboard, Color, Piece, PieceType, Square, ZOBRIST};
+use crate::types::{Bitboard, Color, Direction, Piece, PieceType, Square, ZOBRIST};
 
 include!(concat!(env!("OUT_DIR"), "/lookup.rs"));
 
 static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
 static mut RAY_PASS: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
+static mut RAY_DIR: [[Direction; 64]; 64] = [[Direction::None; 64]; 64];
 
 static mut CUCKOO: [u64; 0x2000] = [0; 0x2000];
 static mut A: [Square; 0x2000] = [Square::None; 0x2000];
@@ -27,6 +28,12 @@ unsafe fn init_luts() {
                     BETWEEN[a][b] = attacks(piece, a, b.to_bb()) & attacks(piece, b, a.to_bb());
                     RAY_PASS[a][b] = attacks(piece, a, Bitboard(0)) & attacks(piece, b, a.to_bb());
                     RAY_PASS[a][b].set(b);
+                }
+            }
+
+            for (dir, bb) in QUEEN_RAYS {
+                if Bitboard(bb[a]).contains(b) {
+                    RAY_DIR[a][b] = *dir;
                 }
             }
         }
@@ -95,6 +102,10 @@ pub fn ray_pass(a: Square, b: Square) -> Bitboard {
     unsafe { RAY_PASS[a as usize][b as usize] }
 }
 
+pub fn ray_dir(a: Square, b: Square) -> Direction {
+    unsafe { RAY_DIR[a as usize][b as usize] }
+}
+
 pub fn relative_diagonal(color: Color, sq: Square) -> Bitboard {
     unsafe { Bitboard(*DIAGONALS[color as usize].get_unchecked(sq as usize)) }
 }
@@ -147,6 +158,15 @@ pub fn bishop_attacks(square: Square, occupancies: Bitboard) -> Bitboard {
 
 pub fn queen_attacks(square: Square, occupancies: Bitboard) -> Bitboard {
     rook_attacks(square, occupancies) | bishop_attacks(square, occupancies)
+}
+
+pub fn piece_rays(piece_type: PieceType) -> &'static [(Direction, &'static [u64; 64])] {
+    match piece_type {
+        PieceType::Rook => ROOK_RAYS,
+        PieceType::Bishop => BISHOP_RAYS,
+        PieceType::Queen => QUEEN_RAYS,
+        _ => &[],
+    }
 }
 
 const fn magic_index(occupancies: Bitboard, entry: &MagicEntry) -> u32 {
@@ -247,6 +267,17 @@ pub const RAY_SW: [u64; 64] = init!(|sq, 64| {
     r
 });
 
-pub const BISHOP_RAYS: &[[u64; 64]] = &[RAY_NE, RAY_NW, RAY_SE, RAY_SW];
-pub const ROOK_RAYS: &[[u64; 64]] = &[RAY_N, RAY_E, RAY_S, RAY_W];
-pub const QUEEN_RAYS: &[[u64; 64]] = &[RAY_N, RAY_E, RAY_S, RAY_W, RAY_NE, RAY_NW, RAY_SE, RAY_SW];
+pub const BISHOP_RAYS: &[(Direction, &[u64; 64])] =
+    &[(Direction::NE, &RAY_NE), (Direction::SE, &RAY_SE), (Direction::SW, &RAY_SW), (Direction::NW, &RAY_NW)];
+pub const ROOK_RAYS: &[(Direction, &[u64; 64])] =
+    &[(Direction::N, &RAY_N), (Direction::E, &RAY_E), (Direction::S, &RAY_S), (Direction::W, &RAY_W)];
+pub const QUEEN_RAYS: &[(Direction, &[u64; 64])] = &[
+    (Direction::N, &RAY_N),
+    (Direction::NE, &RAY_NE),
+    (Direction::E, &RAY_E),
+    (Direction::SE, &RAY_SE),
+    (Direction::S, &RAY_S),
+    (Direction::SW, &RAY_SW),
+    (Direction::W, &RAY_W),
+    (Direction::NW, &RAY_NW),
+];

@@ -50,3 +50,8 @@ impl File {
         *self >= File::E
     }
 }
+
+#[rustfmt::skip]
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+pub enum Direction { N, NE, E, SE, S, SW, W, NW, None }

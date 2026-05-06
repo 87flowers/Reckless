@@ -1,22 +1,22 @@
 use super::{Aligned, L1_SIZE, simd};
 use crate::{
     board::Board,
-    lookup::attacks,
+    lookup::{attacks, piece_rays},
     nnue::Parameters,
-    types::{ArrayVec, Color, Piece, Square},
+    types::{ArrayVec, Bitboard, Color, Direction, Piece, Square},
 };
 
 mod threat_index;
 pub use threat_index::*;
 
-#[cfg(not(target_feature = "avx2"))]
+// #[cfg(not(target_feature = "avx2"))]
 mod scalar;
-#[cfg(not(target_feature = "avx2"))]
+// #[cfg(not(target_feature = "avx2"))]
 pub use scalar::*;
-#[cfg(target_feature = "avx2")]
-mod vectorized;
-#[cfg(target_feature = "avx2")]
-pub use vectorized::*;
+// #[cfg(target_feature = "avx2")]
+// mod vectorized;
+// #[cfg(target_feature = "avx2")]
+// pub use vectorized::*;
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
@@ -24,7 +24,7 @@ pub struct ThreatDelta(u32);
 
 impl ThreatDelta {
     #[allow(dead_code)]
-    pub const fn new(piece: Piece, from: Square, attacked: Piece, to: Square, add: bool) -> Self {
+    pub const fn new_threat(piece: Piece, from: Square, attacked: Piece, to: Square, add: bool) -> Self {
         Self(
             piece as u32
                 | ((from as u32) << 8)
@@ -32,6 +32,21 @@ impl ThreatDelta {
                 | ((to as u32) << 24)
                 | ((add as u32) << 31),
         )
+    }
+
+    #[allow(dead_code)]
+    pub const fn new_lack(piece: Piece, from: Square, dir: Direction, add: bool) -> Self {
+        Self(
+            piece as u32
+                | ((from as u32) << 8)
+                | ((Piece::None as u8 as u32) << 16)
+                | ((dir as u32) << 24)
+                | ((add as u32) << 31),
+        )
+    }
+
+    pub fn is_threat(self) -> bool {
+        self.attacked() != Piece::None
     }
 
     pub const fn piece(self) -> Piece {
@@ -47,6 +62,10 @@ impl ThreatDelta {
     }
 
     pub const fn to(self) -> Square {
+        unsafe { std::mem::transmute(((self.0 >> 24) & 0x7F) as u8) }
+    }
+
+    pub const fn dir(self) -> Direction {
         unsafe { std::mem::transmute(((self.0 >> 24) & 0x7F) as u8) }
     }
 
@@ -77,15 +96,23 @@ impl ThreatAccumulator {
         let mut adds = ArrayVec::<usize, 8196>::new();
 
         for square in board.occupancies() {
+            let mirrored = king.is_kingside();
             let piece = board.piece_on(square);
             let threats = attacks(piece, square, board.occupancies()) & board.occupancies();
 
             for target in threats {
                 let attacked = board.piece_on(target);
-                let mirrored = king.is_kingside();
 
                 let index = threat_index(piece, square, attacked, target, mirrored, pov);
                 adds.maybe_push(index >= 0, index as usize);
+            }
+
+            for (dir, ray) in piece_rays(piece.piece_type()) {
+                let ray = Bitboard(ray[square]);
+                if (ray & board.occupancies()).is_empty() {
+                    let index = lack_index(piece, square, *dir, mirrored, pov);
+                    adds.maybe_push(index >= 0, index as usize);
+                }
             }
         }
 
@@ -143,11 +170,15 @@ impl ThreatAccumulator {
         let mut subs = ArrayVec::<usize, 256>::new();
 
         for &td in self.delta.iter() {
-            let (piece, from, attacked, to, add) = (td.piece(), td.from(), td.attacked(), td.to(), td.add());
             let mirrored = king.is_kingside();
-
-            let index = threat_index(piece, from, attacked, to, mirrored, pov);
-            if add {
+            let index = if td.is_threat() {
+                let (piece, from, attacked, to) = (td.piece(), td.from(), td.attacked(), td.to());
+                threat_index(piece, from, attacked, to, mirrored, pov)
+            } else {
+                let (piece, from, dir) = (td.piece(), td.from(), td.dir());
+                lack_index(piece, from, dir, mirrored, pov)
+            };
+            if td.add() {
                 adds.maybe_push(index >= 0, index as usize);
             } else {
                 subs.maybe_push(index >= 0, index as usize);
