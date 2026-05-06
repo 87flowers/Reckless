@@ -1,5 +1,5 @@
 use crate::{
-    lookup::attacks,
+    lookup::{attacks, piece_rays},
     types::{Bitboard, Color, Direction, Piece, PieceType, Square},
 };
 
@@ -33,9 +33,9 @@ static mut PIECE_LACK_LOOKUP: [i32; 12] = [0; 12];
 const LACK_DIR_LOOKUP: [[i32; 8]; 6] = [
     [-1; 8],
     [-1; 8],
-    [-1, 0, -1, 64, -1, 128, -1, 192],
+    [-1, 0, -1, 128, -1, 192, -1, 64],
     [0, -1, 64, -1, 128, -1, 192, -1],
-    [0, 64, 128, 192, 256, 320, 384, 448],
+    [0, 256, 64, 384, 128, 448, 192, 320],
     [-1; 8],
 ];
 
@@ -78,13 +78,11 @@ pub fn initialize() {
 
             unsafe { PIECE_LACK_LOOKUP[piece] = offset };
 
-            offset += match piece_type {
-                PieceType::None | PieceType::Pawn | PieceType::Knight | PieceType::King => 0,
-                PieceType::Bishop | PieceType::Rook => 4 * 64,
-                PieceType::Queen => 8 * 64,
-            };
+            offset += piece_rays(piece_type).len() as i32 * 64;
         }
     }
+
+    assert_eq!(offset, 68912);
 
     for attacking in Piece::ALL {
         for attacked in Piece::ALL {
