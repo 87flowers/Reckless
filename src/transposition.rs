@@ -220,17 +220,28 @@ impl TranspositionTable {
             entry.mv = mv;
         }
 
-        if !force && key == entry.key && depth + 4 + 2 * tt_pv as i32 <= entry.depth() && entry.flags.age() == tt_age {
-            return;
-        }
-
         // Adjust mate distance from "plies from the root" to "plies from the current position"
         if is_decisive(score) && is_valid(score) {
             score += score.signum() * ply as i32;
         }
 
+        let is_better_win = is_win(score) && is_win(entry.score as i32) && score >= entry.score as i32;
+
+        if !force
+            && key == entry.key
+            && depth + 4 + 2 * tt_pv as i32 <= entry.depth()
+            && entry.flags.age() == tt_age
+            && !is_better_win
+        {
+            return;
+        }
+
         entry.key = key;
-        entry.offset_depth = TtDepth::to_tt(depth);
+        entry.offset_depth = if is_better_win && key == entry.key {
+            TtDepth::to_tt(depth).max(entry.offset_depth.saturating_sub(1))
+        } else {
+            TtDepth::to_tt(depth)
+        };
         entry.score = score as i16;
         entry.raw_eval = raw_eval as i16;
         entry.flags = Flags::new(bound, tt_pv, tt_age);
