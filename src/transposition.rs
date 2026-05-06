@@ -224,7 +224,7 @@ impl TranspositionTable {
             && key == entry.key
             && depth + 4 + 2 * tt_pv as i32 <= entry.depth()
             && entry.flags.age() == tt_age
-            && !(is_decisive(score) && is_decisive(entry.score as i32) && score.abs() >= entry.score.abs() as i32)
+            && !(is_decisive(score) && is_decisive(entry.score as i32))
         {
             return;
         }
