@@ -225,7 +225,7 @@ impl TranspositionTable {
             score += score.signum() * ply as i32;
         }
 
-        let is_better_win = is_win(score) && is_win(entry.score as i32) && score >= entry.score as i32;
+        let is_better_win = is_win(score) && is_win(entry.score as i32) && score > entry.score as i32;
 
         if !force
             && key == entry.key
