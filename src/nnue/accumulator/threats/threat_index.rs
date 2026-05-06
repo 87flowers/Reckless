@@ -29,6 +29,15 @@ impl PiecePair {
 static mut PIECE_PAIR_LOOKUP: [[PiecePair; 12]; 12] = [[PiecePair { inner: 0 }; 12]; 12];
 static mut PIECE_OFFSET_LOOKUP: [[i32; 64]; 12] = [[0; 64]; 12];
 static mut ATTACK_INDEX_LOOKUP: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
+static mut PIECE_LACK_LOOKUP: [i32; 12] = [0; 12];
+const LACK_RAY_LOOKUP: [[i32; 8]; 6] = [
+    [-1; 8],
+    [-1; 8],
+    [-1, 0, -1, 64, -1, 128, -1, 192],
+    [0, -1, 64, -1, 128, -1, 192, -1],
+    [0, 64, 128, 192, 256, 320, 384, 448],
+    [-1; 8],
+];
 
 pub fn initialize() {
     #[rustfmt::skip]
@@ -66,6 +75,14 @@ pub fn initialize() {
             offset_table[piece] = offset;
 
             offset += PIECE_TARGET_COUNT[piece_type] * count;
+
+            unsafe { PIECE_LACK_LOOKUP[piece] = offset };
+
+            offset += match piece_type {
+                PieceType::None | PieceType::Pawn | PieceType::Knight | PieceType::King => 0,
+                PieceType::Bishop | PieceType::Rook => 4 * 64,
+                PieceType::Queen => 8 * 64,
+            };
         }
     }
 
@@ -113,5 +130,15 @@ pub fn threat_index(piece: Piece, from: Square, attacked: Piece, to: Square, mir
         pair.base(from, to)
             + PIECE_OFFSET_LOOKUP[attacking][from] as isize
             + ATTACK_INDEX_LOOKUP[attacking][from][to] as isize
+    }
+}
+
+pub fn lack_index(piece: Piece, from: Square, ray: u8, mirrored: bool, pov: Color) -> isize {
+    let ray = if pov == Color::Black { 8u8.wrapping_sub(ray) } else { ray };
+    let ray = if mirrored { 4u8.wrapping_sub(ray) } else { ray };
+    let ray = ray % 8;
+
+    unsafe {
+        PIECE_LACK_LOOKUP[piece] as isize + LACK_RAY_LOOKUP[piece.piece_type()][ray as usize] as isize + from as isize
     }
 }
