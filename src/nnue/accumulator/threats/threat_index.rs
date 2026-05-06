@@ -1,6 +1,6 @@
 use crate::{
     lookup::attacks,
-    types::{Bitboard, Color, Piece, PieceType, Square},
+    types::{Bitboard, Color, Direction, Piece, PieceType, Square},
 };
 
 #[derive(Copy, Clone)]
@@ -30,7 +30,7 @@ static mut PIECE_PAIR_LOOKUP: [[PiecePair; 12]; 12] = [[PiecePair { inner: 0 }; 
 static mut PIECE_OFFSET_LOOKUP: [[i32; 64]; 12] = [[0; 64]; 12];
 static mut ATTACK_INDEX_LOOKUP: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
 static mut PIECE_LACK_LOOKUP: [i32; 12] = [0; 12];
-const LACK_RAY_LOOKUP: [[i32; 8]; 6] = [
+const LACK_DIR_LOOKUP: [[i32; 8]; 6] = [
     [-1; 8],
     [-1; 8],
     [-1, 0, -1, 64, -1, 128, -1, 192],
@@ -133,12 +133,13 @@ pub fn threat_index(piece: Piece, from: Square, attacked: Piece, to: Square, mir
     }
 }
 
-pub fn lack_index(piece: Piece, from: Square, ray: u8, mirrored: bool, pov: Color) -> isize {
-    let ray = if pov == Color::Black { 8u8.wrapping_sub(ray) } else { ray };
-    let ray = if mirrored { 4u8.wrapping_sub(ray) } else { ray };
-    let ray = ray % 8;
+pub fn lack_index(piece: Piece, from: Square, dir: Direction, mirrored: bool, pov: Color) -> isize {
+    let dir = dir as u8;
+    let dir = if pov == Color::Black { 8u8.wrapping_sub(dir) } else { dir };
+    let dir = if mirrored { 4u8.wrapping_sub(dir) } else { dir };
+    let dir = dir % 8;
 
     unsafe {
-        PIECE_LACK_LOOKUP[piece] as isize + LACK_RAY_LOOKUP[piece.piece_type()][ray as usize] as isize + from as isize
+        PIECE_LACK_LOOKUP[piece] as isize + LACK_DIR_LOOKUP[piece.piece_type()][dir as usize] as isize + from as isize
     }
 }

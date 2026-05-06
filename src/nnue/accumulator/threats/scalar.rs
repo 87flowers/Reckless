@@ -1,6 +1,9 @@
 use crate::{
     board::Board,
-    lookup::{attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
+    lookup::{
+        attacks, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, piece_rays, ray_dir, ray_pass,
+        rook_attacks,
+    },
     nnue::accumulator::threats::{ThreatAccumulator, ThreatDelta},
     types::{Bitboard, Color, Piece, PieceType, Square},
 };
@@ -24,6 +27,11 @@ fn push_threats_single(
     for to in attacked {
         deltas.push(ThreatDelta::new_threat(piece, square, board.piece_on(to), to, add));
     }
+    for (dir, ray) in piece_rays(piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(piece, square, *dir, add));
+        }
+    }
 
     let rook_attacks = rook_attacks(square, occupancies);
     let bishop_attacks = bishop_attacks(square, occupancies);
@@ -38,6 +46,8 @@ fn push_threats_single(
 
         if let Some(to) = discovery_ray.into_iter().next() {
             deltas.push(ThreatDelta::new_threat(sliding_piece, from, board.piece_on(to), to, !add));
+        } else {
+            deltas.push(ThreatDelta::new_lack(sliding_piece, from, ray_dir(from, square), !add));
         }
 
         deltas.push(ThreatDelta::new_threat(sliding_piece, from, piece, square, add));
@@ -65,9 +75,19 @@ pub fn push_threats_on_mutate(
     for to in attacked {
         deltas.push(ThreatDelta::new_threat(old_piece, square, board.piece_on(to), to, false));
     }
+    for (dir, ray) in piece_rays(old_piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(old_piece, square, *dir, false));
+        }
+    }
     let attacked = attacks(new_piece, square, occupancies) & occupancies;
     for to in attacked {
         deltas.push(ThreatDelta::new_threat(new_piece, square, board.piece_on(to), to, true));
+    }
+    for (dir, ray) in piece_rays(new_piece.piece_type()) {
+        if (Bitboard(ray[square]) & occupancies).is_empty() {
+            deltas.push(ThreatDelta::new_lack(new_piece, square, *dir, true));
+        }
     }
 
     let rook_attacks = rook_attacks(square, occupancies);
