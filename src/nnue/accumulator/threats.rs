@@ -24,7 +24,7 @@ pub struct ThreatDelta(u32);
 
 impl ThreatDelta {
     #[allow(dead_code)]
-    pub const fn new(piece: Piece, from: Square, attacked: Piece, to: Square, add: bool) -> Self {
+    pub const fn new_threat(piece: Piece, from: Square, attacked: Piece, to: Square, add: bool) -> Self {
         Self(
             piece as u32
                 | ((from as u32) << 8)

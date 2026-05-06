@@ -127,7 +127,7 @@ pub fn splat_threats(
         // SAFETY: i is always less than 64
         let piece = unsafe { pieces.get_unchecked(i) };
         let square = unsafe { squares.get_unchecked(i) };
-        accum.delta.push(ThreatDelta::new(focus_piece, focus_sq, *piece, *square, add));
+        accum.delta.push(ThreatDelta::new_threat(focus_piece, focus_sq, *piece, *square, add));
         attacked &= attacked - 1;
     }
 
@@ -136,7 +136,7 @@ pub fn splat_threats(
         // SAFETY: i is always less than 64
         let piece = unsafe { pieces.get_unchecked(i) };
         let square = unsafe { squares.get_unchecked(i) };
-        accum.delta.push(ThreatDelta::new(*piece, *square, focus_piece, focus_sq, add));
+        accum.delta.push(ThreatDelta::new_threat(*piece, *square, focus_piece, focus_sq, add));
         attackers &= attackers - 1;
     }
 }
@@ -161,7 +161,7 @@ pub fn splat_xray_threats(
         let attacked = unsafe { pieces.get_unchecked((victim + 32) % 64) };
         let attacked_sq = unsafe { squares.get_unchecked((victim + 32) % 64) };
 
-        accum.delta.push(ThreatDelta::new(*attacker, *attacker_sq, *attacked, *attacked_sq, add));
+        accum.delta.push(ThreatDelta::new_threat(*attacker, *attacker_sq, *attacked, *attacked_sq, add));
 
         sliders &= sliders - 1;
         victims &= victims - 1;
