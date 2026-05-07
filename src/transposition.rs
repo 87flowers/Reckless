@@ -225,19 +225,19 @@ impl TranspositionTable {
             score += score.signum() * ply as i32;
         }
 
-        let is_better_win = is_win(score) && is_win(entry.score as i32) && score > entry.score as i32;
+        let is_win = is_win(score) && score > entry.score as i32 && bound != Bound::Upper;
 
         if !force
             && key == entry.key
             && depth + 4 + 2 * tt_pv as i32 <= entry.depth()
             && entry.flags.age() == tt_age
-            && !is_better_win
+            && !is_win
         {
             return;
         }
 
         entry.key = key;
-        entry.offset_depth = if is_better_win && key == entry.key {
+        entry.offset_depth = if is_win && key == entry.key {
             TtDepth::to_tt(depth).max(entry.offset_depth.saturating_sub(1))
         } else {
             TtDepth::to_tt(depth)
