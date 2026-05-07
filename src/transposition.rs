@@ -237,11 +237,7 @@ impl TranspositionTable {
         }
 
         entry.key = key;
-        entry.offset_depth = if is_win && key == entry.key {
-            TtDepth::to_tt(depth).max(entry.offset_depth.saturating_sub(1))
-        } else {
-            TtDepth::to_tt(depth)
-        };
+        entry.offset_depth = TtDepth::to_tt(depth);
         entry.score = score as i16;
         entry.raw_eval = raw_eval as i16;
         entry.flags = Flags::new(bound, tt_pv, tt_age);
