@@ -274,7 +274,7 @@ fn search<NODE: NodeType>(
 
     // Qsearch Dive
     if depth <= 0 {
-        return qsearch::<NODE>(td, alpha, beta, ply);
+        return qsearch::<NODE>(td, alpha, beta, ply, false);
     }
 
     let draw_score = draw(td);
@@ -504,7 +504,7 @@ fn search<NODE: NodeType>(
         && !tt_move.is_quiet()
         && tt_bound != Bound::Lower
     {
-        return qsearch::<NonPV>(td, alpha, beta, ply);
+        return qsearch::<NonPV>(td, alpha, beta, ply, false);
     }
 
     // Reverse Futility Pruning (RFP)
@@ -605,7 +605,7 @@ fn search<NODE: NodeType>(
 
             make_move(td, ply, mv);
 
-            let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
+            let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1, false);
 
             let base_depth = (depth - 4).max(0);
             let mut probcut_depth = (base_depth - (score - probcut_beta) / 319).clamp(0, base_depth);
@@ -1117,7 +1117,7 @@ fn search<NODE: NodeType>(
     best_score
 }
 
-fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: isize) -> i32 {
+fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: isize, after_null: bool) -> i32 {
     debug_assert!(!NODE::ROOT);
     debug_assert!(ply as usize <= MAX_PLY);
     debug_assert!(-Score::INFINITE <= alpha && alpha < beta && beta <= Score::INFINITE);
@@ -1208,15 +1208,44 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     // Stand Pat
     if best_score >= beta {
-        if !is_decisive(best_score) && !is_decisive(beta) {
-            best_score = beta + (best_score - beta) / 3;
-        }
+        if after_null || in_check || NODE::PV {
+            if !is_decisive(best_score) && !is_decisive(beta) {
+                best_score = beta + (best_score - beta) / 3;
+            }
 
-        if entry.is_none() {
-            td.shared.tt.write(hash, TtDepth::SOME, raw_eval, best_score, Bound::Lower, Move::NULL, ply, tt_pv, false);
-        }
+            if entry.is_none() {
+                td.shared.tt.write(
+                    hash,
+                    TtDepth::SOME,
+                    raw_eval,
+                    best_score,
+                    Bound::Lower,
+                    Move::NULL,
+                    ply,
+                    tt_pv,
+                    false,
+                );
+            }
 
-        return best_score;
+            return best_score;
+        } else {
+            td.stack[ply].conthist = td.stack.sentinel().conthist;
+            td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
+            td.stack[ply].piece = Piece::None;
+            td.stack[ply].mv = Move::NULL;
+
+            td.board.make_null_move();
+            td.shared.tt.prefetch(td.board.hash());
+            let score = -qsearch::<NODE>(td, -beta, -alpha, ply + 1, true);
+
+            td.board.undo_null_move();
+
+            if score >= beta && !is_win(score) {
+                return score;
+            }
+
+            best_score = score;
+        }
     }
 
     if best_score > alpha {
@@ -1246,7 +1275,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
         }
 
         make_move(td, ply, mv);
-        let score = -qsearch::<NODE>(td, -beta, -alpha, ply + 1);
+        let score = -qsearch::<NODE>(td, -beta, -alpha, ply + 1, after_null);
         undo_move(td, mv);
 
         if td.shared.status.get() == Status::STOPPED {
