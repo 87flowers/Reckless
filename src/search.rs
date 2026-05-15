@@ -691,6 +691,17 @@ fn search<NODE: NodeType>(
         else if tt_score >= beta || cut_node {
             extension = -2;
         }
+    } else if !NODE::ROOT && !excluded && depth <= 4 && !in_check && tt_bound == Bound::Lower && tt_move.is_quiet() {
+        let singular_beta = alpha - 15;
+        let score = qsearch::<NonPV>(td, singular_beta - 1, singular_beta, ply);
+
+        if td.shared.status.get() == Status::STOPPED {
+            return Score::ZERO;
+        }
+
+        if score < singular_beta {
+            extension = 1;
+        }
     }
 
     let mut best_move = Move::NULL;
