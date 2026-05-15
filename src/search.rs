@@ -691,6 +691,23 @@ fn search<NODE: NodeType>(
         else if tt_score >= beta || cut_node {
             extension = -2;
         }
+    } else if !NODE::ROOT && !excluded && depth <= 4 && !in_check && tt_bound == Bound::Lower {
+        td.stack[ply].conthist = td.stack.sentinel().conthist;
+        td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
+        td.stack[ply].piece = Piece::None;
+        td.stack[ply].mv = Move::NULL;
+
+        td.board.make_null_move();
+        td.shared.tt.prefetch(td.board.hash());
+
+        let bound = alpha - 5;
+        let score = -qsearch::<NonPV>(td, -bound - 1, -bound, ply + 1);
+
+        td.board.undo_null_move();
+
+        if score < bound {
+            extension = 1;
+        }
     }
 
     let mut best_move = Move::NULL;
