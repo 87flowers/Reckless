@@ -660,7 +660,7 @@ fn search<NODE: NodeType>(
             _ => false,
         }
     {
-        return if tt_score <= alpha { alpha } else { beta };
+        return (tt_score + beta) / 2;
     }
 
     // Singular Extensions (SE)
