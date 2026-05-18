@@ -648,6 +648,21 @@ fn search<NODE: NodeType>(
         }
     }
 
+    // Mini ProbCut
+    if !NODE::PV
+        && !excluded
+        && !in_check
+        && tt_depth >= depth - 2
+        && !is_decisive(tt_score)
+        && match tt_bound {
+            Bound::Upper => tt_score <= alpha - 1024 && !cut_node,
+            Bound::Lower => tt_score >= beta + 1024 && cut_node,
+            _ => false,
+        }
+    {
+        return if tt_score <= alpha { alpha } else { beta };
+    }
+
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
