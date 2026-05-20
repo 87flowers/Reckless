@@ -565,7 +565,7 @@ fn search<NODE: NodeType>(
         td.board.make_null_move();
         td.shared.tt.prefetch(td.board.hash());
 
-        let bound = if is_valid(tt_score) && beta > tt_score && tt_bound == Bound::Lower && depth - 2 <= tt_depth {
+        let bound = if is_valid(tt_score) && beta > tt_score && tt_bound == Bound::Lower && depth - r < tt_depth {
             tt_score
         } else {
             beta
