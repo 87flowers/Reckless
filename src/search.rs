@@ -571,7 +571,7 @@ fn search<NODE: NodeType>(
             beta
         };
 
-        let score = -search::<NonPV>(td, -bound, -bound + 1, depth - r, false, ply + 1);
+        let score = -search::<NonPV>(td, -beta, -beta + 1, depth - r, false, ply + 1);
 
         td.board.undo_null_move();
 
@@ -585,7 +585,7 @@ fn search<NODE: NodeType>(
             }
 
             td.nmp_min_ply = ply as i32 + 3 * (depth - r) / 4;
-            let verified_score = search::<NonPV>(td, bound - 1, bound, depth - r, false, ply);
+            let verified_score = search::<NonPV>(td, beta - 1, beta, depth - r, false, ply);
             td.nmp_min_ply = 0;
 
             if td.shared.status.get() == Status::STOPPED {
