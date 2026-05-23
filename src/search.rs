@@ -716,7 +716,7 @@ fn search<NODE: NodeType>(
     let mut skip_quiets = false;
     let mut current_search_count = 0;
     let mut tt_move_score = Score::NONE;
-    let mut marginal_moves = 0;
+    let mut best_move_margin = 0;
 
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.stack[ply].excluded {
@@ -993,6 +993,7 @@ fn search<NODE: NodeType>(
         }
 
         if score > best_score {
+            best_move_margin = score - best_score;
             best_score = score;
 
             if score > alpha {
@@ -1017,10 +1018,6 @@ fn search<NODE: NodeType>(
             }
         }
 
-        if score >= beta - 8 {
-            marginal_moves += 1;
-        }
-
         if mv != best_move && move_count < 32 {
             if is_quiet {
                 quiet_moves.push(mv);
@@ -1039,13 +1036,13 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
-        let noisy_bonus = (89 * depth).min(748) - 45 - 74 * cut_node as i32 - 5 * (marginal_moves > 3) as i32;
+        let noisy_bonus = (89 * depth).min(748) - 45 - 74 * cut_node as i32 - 16 * (best_move_margin < 8) as i32;
         let noisy_malus = (179 * depth).min(1391) - 57 - 23 * noisy_moves.len() as i32;
 
-        let quiet_bonus = (185 * depth).min(1648) - 85 - 58 * cut_node as i32 - 5 * (marginal_moves > 3) as i32;
+        let quiet_bonus = (185 * depth).min(1648) - 85 - 58 * cut_node as i32 - 16 * (best_move_margin < 8) as i32;
         let quiet_malus = (162 * depth).min(1198) - 46 - 34 * quiet_moves.len() as i32;
 
-        let cont_bonus = (107 * depth).min(1051) - 64 - 45 * cut_node as i32 - 5 * (marginal_moves > 3) as i32;
+        let cont_bonus = (107 * depth).min(1051) - 64 - 45 * cut_node as i32 - 16 * (best_move_margin < 8) as i32;
         let cont_malus = (399 * depth).min(933) - 53 - 17 * quiet_moves.len() as i32;
 
         if best_move.is_noisy() {
