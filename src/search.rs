@@ -501,7 +501,8 @@ fn search<NODE: NodeType>(
         0
     };
 
-    let improving = improvement > 0;
+    let improving = improvement > 0
+        || (!in_check && ply > 4 && !is_valid(td.stack[ply - 2].eval) && !is_valid(td.stack[ply - 4].eval));
 
     // Razoring
     if !NODE::PV
