@@ -461,6 +461,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].move_history = None;
     td.stack[ply + 2].cutoff_count = 0;
 
     // Quiet move ordering using eval difference
@@ -561,6 +562,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
+        td.stack[ply].move_history = None;
 
         td.board.make_null_move();
         td.shared.tt.prefetch(td.board.hash());
@@ -738,6 +740,7 @@ fn search<NODE: NodeType>(
             let captured = td.board.type_on(mv.to());
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
         };
+        td.stack[ply].move_history = Some(history);
 
         if !NODE::ROOT && !is_loss(best_score) {
             // Late Move Pruning (LMP)
@@ -857,6 +860,10 @@ fn search<NODE: NodeType>(
                 reduction += (567 * (margin - 162) / 128).clamp(0, 2045);
             }
 
+            if td.stack[ply - 1].move_history.map_or_else(|| false, |h| h > history + 20000) {
+                reduction += 128;
+            }
+
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 462 {
                 reduction += 126;
             }
@@ -922,6 +929,10 @@ fn search<NODE: NodeType>(
 
             if mv == tt_move {
                 reduction -= 3192;
+            }
+
+            if td.stack[ply - 1].move_history.map_or_else(|| false, |h| h > history + 20000) {
+                reduction += 128;
             }
 
             if td.stack[ply - 1].reduction > reduction + 577 {
