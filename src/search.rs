@@ -688,7 +688,7 @@ fn search<NODE: NodeType>(
         }
     }
     // Low Depth Singular Extensions (LDSE)
-    else if depth <= 7 && !in_check && cut_node && estimated_score <= alpha - 25 {
+    else if depth <= 7 && !in_check && cut_node && estimated_score <= alpha - 25 + 5 * correction_value.abs() / 128 {
         extension = 1;
     }
 
