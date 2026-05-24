@@ -863,7 +863,7 @@ fn search<NODE: NodeType>(
             if is_quiet == td.stack[ply - 2].mv.is_quiet()
                 && td.stack[ply - 2].move_history.map_or_else(|| false, |h| h > history + 20000)
             {
-                reduction += 128;
+                reduction += 256;
             }
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 462 {
@@ -936,7 +936,7 @@ fn search<NODE: NodeType>(
             if is_quiet == td.stack[ply - 2].mv.is_quiet()
                 && td.stack[ply - 2].move_history.map_or_else(|| false, |h| h > history + 20000)
             {
-                reduction += 128;
+                reduction += 256;
             }
 
             if td.stack[ply - 1].reduction > reduction + 577 {
