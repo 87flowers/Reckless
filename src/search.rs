@@ -860,7 +860,9 @@ fn search<NODE: NodeType>(
                 reduction += (567 * (margin - 162) / 128).clamp(0, 2045);
             }
 
-            if td.stack[ply - 1].move_history.map_or_else(|| false, |h| h > history + 20000) {
+            if is_quiet == td.stack[ply - 2].mv.is_quiet()
+                && td.stack[ply - 2].move_history.map_or_else(|| false, |h| h > history + 20000)
+            {
                 reduction += 128;
             }
 
@@ -931,7 +933,9 @@ fn search<NODE: NodeType>(
                 reduction -= 3192;
             }
 
-            if td.stack[ply - 1].move_history.map_or_else(|| false, |h| h > history + 20000) {
+            if is_quiet == td.stack[ply - 2].mv.is_quiet()
+                && td.stack[ply - 2].move_history.map_or_else(|| false, |h| h > history + 20000)
+            {
                 reduction += 128;
             }
 
