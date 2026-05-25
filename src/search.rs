@@ -710,12 +710,16 @@ fn search<NODE: NodeType>(
         if reduced_score >= beta && td.stack[ply].mv != Move::NULL && !is_decisive(reduced_score) {
             td.stack[ply].excluded = td.stack[ply].mv;
             td.stack[ply].mv = Move::NULL;
-            let multi_cut_score = search::<NonPV>(td, beta - 1, beta, reduced_depth, cut_node, ply);
+            let singular_score = search::<NonPV>(td, beta - 1, beta, reduced_depth, cut_node, ply);
             td.stack[ply].excluded = Move::NULL;
             td.stack[ply].tt_pv = tt_pv;
 
-            if multi_cut_score >= beta && !is_decisive(multi_cut_score) {
-                return (reduced_score + multi_cut_score) / 2;
+            if singular_score >= beta && !is_decisive(singular_score) {
+                return (reduced_score + singular_score) / 2;
+            }
+
+            if singular_score < beta - 2 * depth {
+                extension = 1;
             }
         }
     }
