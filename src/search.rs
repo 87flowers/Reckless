@@ -693,14 +693,7 @@ fn search<NODE: NodeType>(
     }
 
     // Multi-Cut
-    if !NODE::ROOT
-        && !excluded
-        && !potential_singularity
-        && depth >= 8
-        && cut_node
-        && tt_bound == Bound::None
-        && !is_decisive(beta)
-    {
+    if !NODE::ROOT && !excluded && !potential_singularity && depth >= 8 && cut_node && !is_decisive(beta) {
         let reduced_depth = (depth - 1) / 2;
 
         td.stack[ply].mv = Move::NULL;
