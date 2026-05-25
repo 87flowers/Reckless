@@ -692,6 +692,34 @@ fn search<NODE: NodeType>(
         extension = 1;
     }
 
+    // Multi-Cut
+    if !NODE::ROOT
+        && !excluded
+        && !potential_singularity
+        && depth >= 8
+        && cut_node
+        && tt_bound == Bound::None
+        && !is_decisive(beta)
+    {
+        let reduced_depth = (depth - 1) / 2;
+
+        td.stack[ply].mv = Move::NULL;
+        let reduced_score = search::<NonPV>(td, beta - 1, beta, reduced_depth, cut_node, ply);
+        td.stack[ply].tt_pv = tt_pv;
+
+        if reduced_score >= beta && td.stack[ply].mv != Move::NULL && !is_decisive(reduced_score) {
+            td.stack[ply].excluded = td.stack[ply].mv;
+            td.stack[ply].mv = Move::NULL;
+            let multi_cut_score = search::<NonPV>(td, beta - 1, beta, reduced_depth, cut_node, ply);
+            td.stack[ply].excluded = Move::NULL;
+            td.stack[ply].tt_pv = tt_pv;
+
+            if multi_cut_score >= beta && !is_decisive(multi_cut_score) {
+                return (reduced_score + multi_cut_score) / 2;
+            }
+        }
+    }
+
     let mut best_move = Move::NULL;
     let mut bound = Bound::Upper;
 
