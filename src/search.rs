@@ -587,6 +587,7 @@ fn search<NODE: NodeType>(
 
     // ProbCut
     let mut probcut_beta = beta + 282 - 80 * improving as i32;
+    let mut probcut_moves_above_beta = 0;
 
     if cut_node
         && !is_win(beta)
@@ -637,6 +638,14 @@ fn search<NODE: NodeType>(
                     return score;
                 }
                 return lerp(score, beta, 0.24);
+            } else if score > beta {
+                score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
+                if score > beta {
+                    probcut_moves_above_beta += 1;
+                    if probcut_moves_above_beta >= 3 {
+                        return lerp(score, beta, 0.8);
+                    }
+                }
             }
         }
     }
