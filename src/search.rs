@@ -638,12 +638,12 @@ fn search<NODE: NodeType>(
                     return score;
                 }
                 return lerp(score, beta, 0.24);
-            } else if score > beta {
+            } else if score > beta + 5 {
                 score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
-                if score > beta {
+                if score >= beta {
                     probcut_moves_above_beta += 1;
-                    if probcut_moves_above_beta >= 3 {
-                        return lerp(score, beta, 0.8);
+                    if probcut_moves_above_beta >= 2 {
+                        return score;
                     }
                 }
             }
