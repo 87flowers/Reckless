@@ -715,7 +715,7 @@ fn search<NODE: NodeType>(
             td.stack[ply].tt_pv = tt_pv;
 
             if singular_score >= beta && !is_decisive(singular_score) {
-                return reduced_score;
+                return beta;
             }
         }
     }
