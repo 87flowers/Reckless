@@ -588,6 +588,7 @@ fn search<NODE: NodeType>(
     // ProbCut
     let mut probcut_beta = beta + 282 - 80 * improving as i32;
     let mut probcut_cutoffs = 0;
+    let mut probcut_cutoff_max_score = i32::MIN;
 
     if cut_node
         && !is_win(beta)
@@ -626,10 +627,11 @@ fn search<NODE: NodeType>(
 
                 // ProbCut Multi-Cut
                 if score >= beta {
-                    let is_cutoff = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
+                    let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
 
-                    if is_cutoff >= beta {
+                    if cutoff_score >= beta {
                         probcut_cutoffs += 1;
+                        probcut_cutoff_max_score = probcut_cutoff_max_score.max(cutoff_score);
                     }
                 }
             }
@@ -649,8 +651,8 @@ fn search<NODE: NodeType>(
                 return lerp(score, beta, 0.24);
             }
 
-            if probcut_cutoffs >= 2 {
-                return beta;
+            if probcut_cutoffs >= 4 {
+                return probcut_cutoff_max_score;
             }
         }
     }
