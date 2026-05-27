@@ -589,8 +589,7 @@ fn search<NODE: NodeType>(
 
     // ProbCut
     let mut probcut_beta = beta + 282 - 80 * improving as i32;
-    let mut probcut_cutoffs = 0;
-    let mut probcut_cutoff_max_score = i32::MIN;
+    let mut try_probcut_multicut = depth >= 8 && !potential_singularity;
 
     if cut_node
         && !is_win(beta)
@@ -629,16 +628,30 @@ fn search<NODE: NodeType>(
             }
 
             // ProbCut Multi-Cut
-            if depth >= 8 && probcut_depth > depth / 2 && score >= beta && score < probcut_beta {
-                let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
+            if try_probcut_multicut && score >= beta && score < probcut_beta {
+                let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, depth - 2, false, ply + 1);
+
+                undo_move(td, mv);
 
                 if cutoff_score >= beta {
-                    probcut_cutoffs += 1;
-                    probcut_cutoff_max_score = probcut_cutoff_max_score.max(cutoff_score);
-                }
-            }
+                    td.excluded[ply] = mv;
+                    let singular_score = search::<NonPV>(td, beta - 1, beta, depth / 2, cut_node, ply);
+                    td.excluded[ply] = Move::NULL;
+                    td.stack[ply].tt_pv = tt_pv;
 
-            undo_move(td, mv);
+                    if td.shared.status.get() == Status::STOPPED {
+                        return Score::ZERO;
+                    }
+
+                    if !is_decisive(singular_score) && singular_score >= beta {
+                        return lerp(singular_score, beta, 0.34);
+                    }
+
+                    try_probcut_multicut = false;
+                }
+            } else {
+                undo_move(td, mv);
+            }
 
             if td.shared.status.get() == Status::STOPPED {
                 return Score::ZERO;
@@ -651,13 +664,6 @@ fn search<NODE: NodeType>(
                     return score;
                 }
                 return lerp(score, beta, 0.24);
-            }
-
-            if probcut_cutoffs >= 3 {
-                if is_decisive(probcut_cutoff_max_score) {
-                    return probcut_cutoff_max_score;
-                }
-                return lerp(probcut_cutoff_max_score, beta, 0.24);
             }
         }
     }
