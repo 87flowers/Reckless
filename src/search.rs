@@ -629,8 +629,8 @@ fn search<NODE: NodeType>(
             }
 
             // ProbCut Multi-Cut
-            if depth >= 8 && score >= beta && score < probcut_beta {
-                let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, depth - 2, false, ply + 1);
+            if depth >= 8 && probcut_beta > depth / 2 && score >= beta && score < probcut_beta {
+                let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
 
                 if cutoff_score >= beta {
                     probcut_cutoffs += 1;
