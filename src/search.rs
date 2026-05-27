@@ -629,7 +629,7 @@ fn search<NODE: NodeType>(
             }
 
             // ProbCut Multi-Cut
-            if score >= beta && score < probcut_beta {
+            if depth >= 8 && score >= beta && score < probcut_beta {
                 let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, depth - 2, false, ply + 1);
 
                 if cutoff_score >= beta {
@@ -653,7 +653,7 @@ fn search<NODE: NodeType>(
                 return lerp(score, beta, 0.24);
             }
 
-            if probcut_cutoffs >= 4 {
+            if probcut_cutoffs >= 3 {
                 if is_decisive(probcut_cutoff_max_score) {
                     return probcut_cutoff_max_score;
                 }
