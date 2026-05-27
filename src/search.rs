@@ -624,18 +624,15 @@ fn search<NODE: NodeType>(
                 } else {
                     probcut_beta = adjusted_beta;
                 }
+            }
 
-                // ProbCut Multi-Cut
-                if score >= probcut_beta {
+            // ProbCut Multi-Cut
+            if score >= beta && score < probcut_beta {
+                let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
+
+                if cutoff_score >= beta {
                     probcut_cutoffs += 1;
-                    probcut_cutoff_max_score = probcut_cutoff_max_score.max(score);
-                } else if score >= beta {
-                    let cutoff_score = -search::<NonPV>(td, -beta, -beta + 1, probcut_depth, false, ply + 1);
-
-                    if cutoff_score >= beta {
-                        probcut_cutoffs += 1;
-                        probcut_cutoff_max_score = probcut_cutoff_max_score.max(cutoff_score);
-                    }
+                    probcut_cutoff_max_score = probcut_cutoff_max_score.max(cutoff_score);
                 }
             }
 
