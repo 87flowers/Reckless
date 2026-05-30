@@ -736,7 +736,7 @@ fn search<NODE: NodeType>(
             td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured)
         };
 
-        if !NODE::ROOT && !is_loss(best_score) {
+        if !NODE::ROOT && ply >= 2 && !is_loss(best_score) {
             // Late Move Pruning (LMP)
             if !in_check
                 && !is_direct_check
