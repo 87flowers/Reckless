@@ -1029,6 +1029,8 @@ fn search<NODE: NodeType>(
 
         let quiet_bonus = (185 * depth).min(1648) - 85 - 58 * cut_node as i32;
         let quiet_malus = (162 * depth).min(1198) - 46 - 34 * quiet_moves.len() as i32;
+        let quiet_bonus = quiet_bonus * if in_check { 512 } else { 1024 } / 1024;
+        let quiet_malus = quiet_malus * if in_check { 512 } else { 1024 } / 1024;
 
         let cont_bonus = (107 * depth).min(1051) - 64 - 45 * cut_node as i32;
         let cont_malus = (399 * depth).min(933) - 53 - 17 * quiet_moves.len() as i32;
