@@ -96,7 +96,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
         }
 
         let mut delta = 23;
-        let mut reduction = 0;
+        let mut beta_cutoff: u32 = 0;
 
         for index in 0..td.multi_pv {
             td.pv_index = index;
@@ -130,6 +130,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
                 td.root_delta = beta - alpha;
 
                 // Root Search
+                let reduction = (beta_cutoff + 1).ilog2() as i32;
                 let score = search::<Root>(td, alpha, beta, (depth - reduction).max(1), false, 0);
 
                 td.root_moves[td.pv_index..td.pv_end].sort_by_key(|rm| std::cmp::Reverse(rm.score));
@@ -148,9 +149,9 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
                         alpha = (beta - delta).max(alpha);
                         beta = (score + delta).min(Score::INFINITE);
                         if !is_decisive(score) {
-                            reduction += 1;
+                            beta_cutoff += 1;
                         } else {
-                            reduction = reduction.min(1)
+                            beta_cutoff = beta_cutoff.min(1)
                         }
                         delta += 60 * delta / 128;
                     }
