@@ -34,6 +34,8 @@ struct InternalState {
     captured: Piece,
     piece_threats: [Bitboard; PieceType::NUM],
     all_threats: Bitboard,
+    piece_defence: [Bitboard; PieceType::NUM],
+    all_defence: Bitboard,
     pinned: [Bitboard; Color::NUM],
     pinners: [Bitboard; Color::NUM],
     checkers: Bitboard,
@@ -115,9 +117,25 @@ impl Board {
         self.state.piece_threats[pt as usize]
     }
 
+    pub const fn all_defence(&self) -> Bitboard {
+        self.state.all_defence
+    }
+
+    pub const fn piece_defence(&self, pt: PieceType) -> Bitboard {
+        self.state.piece_defence[pt as usize]
+    }
+
     pub fn prior_threats(&self) -> Bitboard {
         debug_assert!(!self.state_stack.is_empty());
         self.state_stack[self.state_stack.len() - 1].all_threats
+    }
+
+    pub fn delta_defence(&self) -> Bitboard {
+        if self.state_stack.len() >= 2 {
+            self.state_stack[self.state_stack.len() - 2].all_defence ^ self.all_defence()
+        } else {
+            Bitboard::default()
+        }
     }
 
     pub const fn captured_piece(&self) -> Piece {
@@ -416,6 +434,26 @@ impl Board {
         // This "hack" is used to speed up the implementation of `Board::is_legal`.
         let stm = self.side_to_move();
         let occupancies = self.occupancies() ^ self.colored_pieces(stm, PieceType::King);
+
+        self.state.piece_defence[PieceType::Pawn] =
+            pawn_attacks_setwise(self.colored_pieces(stm, PieceType::Pawn), stm);
+        self.state.piece_defence[PieceType::Knight] =
+            knight_attacks_setwise(self.colored_pieces(stm, PieceType::Knight));
+        self.state.piece_defence[PieceType::Bishop] =
+            bishop_attacks_setwise(self.colored_pieces(stm, PieceType::Bishop), occupancies);
+        self.state.piece_defence[PieceType::Rook] =
+            rook_attacks_setwise(self.colored_pieces(stm, PieceType::Rook), occupancies);
+        self.state.piece_defence[PieceType::Queen] =
+            bishop_attacks_setwise(self.colored_pieces(stm, PieceType::Queen), occupancies)
+                | rook_attacks_setwise(self.colored_pieces(stm, PieceType::Queen), occupancies);
+        self.state.piece_defence[PieceType::King] = king_attacks(self.king_square(stm));
+
+        self.state.all_defence = self.piece_defence(PieceType::Pawn)
+            | self.piece_defence(PieceType::Knight)
+            | self.piece_defence(PieceType::Bishop)
+            | self.piece_defence(PieceType::Rook)
+            | self.piece_defence(PieceType::Queen)
+            | self.piece_defence(PieceType::King);
 
         self.state.piece_threats[PieceType::Pawn] =
             pawn_attacks_setwise(self.colored_pieces(!stm, PieceType::Pawn), !stm);
