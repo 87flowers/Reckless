@@ -127,6 +127,7 @@ impl MovePicker {
 
     fn score_noisy(&mut self, td: &ThreadData) {
         let threats = td.board.all_threats();
+        let new_undefended = td.board.delta_threats() & !threats;
 
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
@@ -135,6 +136,7 @@ impl MovePicker {
 
             entry.score = 14232 * captured.value() / 1024
                 + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
+                + 8000 * new_undefended.contains(mv.to()) as i32
                 + 4558 * (mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen) as i32
                 + (200000 - 20000 * pt as i32) * td.board.in_check() as i32;
         }

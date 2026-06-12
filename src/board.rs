@@ -120,6 +120,14 @@ impl Board {
         self.state_stack[self.state_stack.len() - 1].all_threats
     }
 
+    pub fn delta_threats(&self) -> Bitboard {
+        if self.state_stack.len() >= 2 {
+            self.state_stack[self.state_stack.len() - 2].all_threats ^ self.all_threats()
+        } else {
+            Bitboard::default()
+        }
+    }
+
     pub const fn captured_piece(&self) -> Piece {
         self.state.captured
     }
