@@ -949,7 +949,7 @@ fn search<NODE: NodeType>(
                 reduction += (351 * (margin - 188) / 128).clamp(0, 2167);
             }
 
-            reduction -= 1024 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
+            reduction -= 245 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
 
             if mv == tt_move {
                 reduction -= 3002;
