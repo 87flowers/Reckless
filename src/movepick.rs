@@ -135,7 +135,6 @@ impl MovePicker {
 
             entry.score = 14232 * captured.value() / 1024
                 + td.noisy_history.get(threats, td.board.moved_piece(mv), mv.to(), captured)
-                + 10000 * !threats.contains(mv.to()) as i32
                 + 4558 * (mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen) as i32
                 + (200000 - 20000 * pt as i32) * td.board.in_check() as i32;
         }
@@ -146,6 +145,7 @@ impl MovePicker {
         let side = td.board.side_to_move();
         let occupancies = td.board.occupancies();
         let pawn_threats = td.board.piece_threats(PieceType::Pawn);
+        let newly_threatened = td.board.delta_threats() & threats;
 
         let non_pawn_threats = td.board.piece_threats(PieceType::Knight)
             | td.board.piece_threats(PieceType::Bishop)
@@ -207,7 +207,8 @@ impl MovePicker {
                 + 10723 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 8875 * threatened[pt].contains(mv.to()) as i32
                 + 3446 * offense[pt].contains(mv.to()) as i32
-                - 4494 * wall_pawns.contains(mv.from()) as i32;
+                - 4494 * wall_pawns.contains(mv.from()) as i32
+                + 4000 * newly_threatened.contains(mv.from()) as i32;
         }
     }
 }
