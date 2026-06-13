@@ -889,7 +889,7 @@ fn search<NODE: NodeType>(
                 reduction += (496 * (margin - 185) / 128).clamp(0, 2021);
             }
 
-            reduction -= 1024 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
+            reduction -= 256 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 414 {
                 reduction += 136;
