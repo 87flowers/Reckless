@@ -844,7 +844,7 @@ fn search<NODE: NodeType>(
             let mut reduction = 269 * depth.ilog2() as i32;
 
             reduction -= (425 * improvement / 128).clamp(-241, 1155);
-            reduction -= 3417 * correction_value.abs() / 1024;
+            reduction -= 3417 * eval_correction(td, ply + 1).abs() / 1024;
 
             reduction += 1412 * (bound == Bound::Exact) as i32;
 
