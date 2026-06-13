@@ -747,6 +747,8 @@ fn search<NODE: NodeType>(
     let mut current_search_count = 0;
     let mut tt_move_score = Score::NONE;
 
+    let offensive_squares = td.board.offensive_squares();
+
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.excluded[ply] {
             continue;
@@ -887,6 +889,8 @@ fn search<NODE: NodeType>(
                 reduction += (496 * (margin - 185) / 128).clamp(0, 2021);
             }
 
+            reduction -= 1024 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
+
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 414 {
                 reduction += 136;
             }
@@ -944,6 +948,8 @@ fn search<NODE: NodeType>(
                 let margin = tt_move_score - singular_score;
                 reduction += (351 * (margin - 188) / 128).clamp(0, 2167);
             }
+
+            reduction -= 1024 * offensive_squares[td.board.piece_on(mv.to()).piece_type()].contains(mv.to()) as i32;
 
             if mv == tt_move {
                 reduction -= 3002;

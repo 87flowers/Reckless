@@ -405,6 +405,40 @@ impl Board {
         self.checking_squares(self.moved_piece(mv).piece_type()).contains(mv.to())
     }
 
+    /// Safe squares from which we can attack an opponent piece of greater value
+    pub fn offensive_squares(&self) -> [Bitboard; 6] {
+        let side = self.side_to_move();
+        let threats = self.all_threats();
+        let pawn_threats = self.piece_threats(PieceType::Pawn);
+        let non_pawn_threats = self.piece_threats(PieceType::Knight)
+            | self.piece_threats(PieceType::Bishop)
+            | self.piece_threats(PieceType::Rook)
+            | self.piece_threats(PieceType::Queen)
+            | self.piece_threats(PieceType::King);
+        let occupancies = self.occupancies();
+
+        let knight_vulnerable = (self.colored_pieces(!side, PieceType::Bishop) & !threats)
+            | self.colored_pieces(!side, PieceType::Rook)
+            | self.colored_pieces(!side, PieceType::Queen);
+        let bishop_vulnerable = self.colored_pieces(!side, PieceType::Rook);
+        let queen_orth_vulnerable = self.colored_pieces(!side, PieceType::Bishop) & !threats;
+        let queen_diag_vulnerable = self.colored_pieces(!side, PieceType::Rook) & !threats;
+
+        let mut p = pawn_attacks_setwise(self.colors(!side), !side) & !threats;
+
+        // Add advanced pawn attacks to pawn offense
+        p |= pawn_threats & Bitboard::LEVER_RANKS[side] & !non_pawn_threats;
+
+        let n = knight_attacks_setwise(knight_vulnerable) & !threats;
+        let b = bishop_attacks_setwise(bishop_vulnerable, occupancies) & !threats;
+        let r = Bitboard::file(self.king_square(!side).file()) & !threats;
+        let q = (rook_attacks_setwise(queen_orth_vulnerable, occupancies)
+            | bishop_attacks_setwise(queen_diag_vulnerable, occupancies))
+            & !threats;
+
+        [p, n, b, r, q, Bitboard(0)]
+    }
+
     pub fn update_threats(&mut self) {
         // The king is excluded from the occupancy bitboard when computing threats,
         // letting sliders "see through" it as if the king weren't blocking their path.
