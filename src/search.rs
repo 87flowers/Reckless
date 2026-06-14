@@ -1173,6 +1173,9 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     debug_assert!(-Score::INFINITE <= alpha && alpha < beta && beta <= Score::INFINITE);
     debug_assert!(NODE::PV || alpha == beta - 1);
 
+    let stm = td.board.side_to_move();
+    let in_check = td.board.in_check();
+
     let draw_score = draw(td);
     if alpha < draw_score && td.board.upcoming_repetition(ply as usize) {
         alpha = draw_score;
@@ -1180,8 +1183,6 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
             return alpha;
         }
     }
-
-    let in_check = td.board.in_check();
 
     if NODE::PV {
         td.pv_table.clear(ply as usize);
@@ -1284,14 +1285,26 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets(best_score), ply) {
         move_count += 1;
 
+        let is_quiet = mv.is_quiet();
+        let is_direct_check = td.board.is_direct_check(mv);
+
+        let history = if is_quiet {
+            td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
+        } else {
+            let captured_type = td.board.type_on(mv.to());
+            td.noisy_history.get(td.board.all_threats(), td.board.moved_piece(mv), mv.to(), captured_type)
+        };
+
         if !is_loss(best_score) {
             // Late Move Pruning (LMP)
-            if move_count >= 3 && !td.board.is_direct_check(mv) {
+            if move_count >= 3 && !is_direct_check {
                 break;
             }
 
             // Static Exchange Evaluation Pruning (SEE Pruning)
-            if is_valid(eval) && !td.board.see(mv, (alpha - eval) / 8 - correction_value.abs().min(68) - 74) {
+            if is_valid(eval)
+                && !td.board.see(mv, (alpha - eval) / 8 - correction_value.abs().min(68) - 30 - 30 * history / 1024)
+            {
                 continue;
             }
         }
