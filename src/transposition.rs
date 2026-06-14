@@ -266,6 +266,25 @@ impl TranspositionTable {
         cluster.set_key(replacement_index, key);
     }
 
+    pub fn decay(&self, hash: u64) {
+        let cluster = {
+            let index = index(hash, self.len());
+            unsafe { &mut *self.ptr().add(index) }
+        };
+
+        let key = verification_key(hash);
+        let index = cluster.lookup_key(key);
+
+        if index < cluster.entries.len() {
+            let offset_depth = &mut cluster.entries[index].offset_depth;
+            let mut depth = TtDepth::from_tt(*offset_depth);
+            if depth > 2 {
+                depth -= 1;
+            }
+            *offset_depth = TtDepth::to_tt(depth);
+        }
+    }
+
     pub fn prefetch(&self, hash: u64) {
         #[cfg(target_arch = "x86_64")]
         unsafe {

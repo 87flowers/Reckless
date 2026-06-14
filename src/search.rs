@@ -382,26 +382,25 @@ fn search<NODE: NodeType>(
         tt_pv |= entry.tt_pv;
         tt_was_pv = entry.tt_pv;
 
-        if !NODE::PV
-            && !excluded
-            && tt_depth > depth - (tt_score < beta) as i32
-            && is_valid(tt_score)
-            && match tt_bound {
+        if !NODE::PV && !excluded && tt_depth > depth - (tt_score < beta) as i32 && is_valid(tt_score) {
+            if match tt_bound {
                 Bound::Upper => tt_score <= alpha && (!cut_node || depth > 5),
                 Bound::Lower => tt_score >= beta && (cut_node || depth > 5),
                 _ => true,
-            }
-        {
-            if tt_move.is_quiet() && tt_score >= beta && td.stack[ply - 1].move_count < 4 {
-                let quiet_bonus = (190 * depth - 81).min(1691);
-                let cont_bonus = (96 * depth - 73).min(1206);
+            } {
+                if tt_move.is_quiet() && tt_score >= beta && td.stack[ply - 1].move_count < 4 {
+                    let quiet_bonus = (190 * depth - 81).min(1691);
+                    let cont_bonus = (96 * depth - 73).min(1206);
 
-                td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
-                update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
-            }
+                    td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
+                    update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
+                }
 
-            if td.board.fiftymove_clock() < 90 {
-                return tt_score;
+                if td.board.fiftymove_clock() < 90 {
+                    return tt_score;
+                }
+            } else if td.nodes() % 3 == 0 {
+                td.shared.tt.decay(hash);
             }
         }
     }
