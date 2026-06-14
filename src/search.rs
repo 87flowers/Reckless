@@ -1257,6 +1257,20 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
         }
     }
 
+    td.stack[ply].eval = eval;
+
+    let improvement = if in_check {
+        0
+    } else if is_valid(td.stack[ply - 2].eval) {
+        eval - td.stack[ply - 2].eval
+    } else if is_valid(td.stack[ply - 4].eval) {
+        eval - td.stack[ply - 4].eval
+    } else {
+        0
+    };
+
+    let improving = improvement > 0;
+
     // Stand Pat
     if best_score >= beta {
         if !is_decisive(best_score) && !is_decisive(beta) {
@@ -1286,7 +1300,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
         if !is_loss(best_score) {
             // Late Move Pruning (LMP)
-            if move_count >= 3 && !td.board.is_direct_check(mv) {
+            if move_count >= 2 + improving as i32 && !td.board.is_direct_check(mv) {
                 break;
             }
 
