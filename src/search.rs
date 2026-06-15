@@ -614,7 +614,7 @@ fn search<NODE: NodeType>(
                 return score;
             }
 
-            td.nmp_min_ply = ply as i32 + 3 * (depth - r) / 4;
+            td.nmp_min_ply = ply as i32 + depth / 4;
             let verified_score = search::<NonPV>(td, bound - 1, bound, depth / 2, false, ply);
             td.nmp_min_ply = 0;
 
@@ -625,6 +625,8 @@ fn search<NODE: NodeType>(
             if verified_score >= bound {
                 return score;
             }
+
+            depth -= 1;
         }
     }
 
