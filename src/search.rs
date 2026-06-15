@@ -1345,6 +1345,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     let bound = if best_score >= beta { Bound::Lower } else { Bound::Upper };
 
+    let tt_pv = NODE::PV || (tt_pv && (bound == Bound::Exact || entry.map_or(false, |e| e.relative_age < 8)));
     td.shared.tt.write(hash, TtDepth::SOME, raw_eval, best_score, bound, best_move, ply, tt_pv, false);
 
     debug_assert!(alpha < beta);

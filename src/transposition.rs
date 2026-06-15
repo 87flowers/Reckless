@@ -23,6 +23,7 @@ pub struct Entry {
     pub depth: i32,
     pub bound: Bound,
     pub tt_pv: bool,
+    pub relative_age: i32,
 }
 
 #[derive(Copy, Clone)]
@@ -194,6 +195,7 @@ impl TranspositionTable {
                 bound: entry.flags.bound(),
                 tt_pv: entry.flags.tt_pv(),
                 mv: entry.mv,
+                relative_age: entry.relative_age(self.age()),
             };
 
             Some(hit)
