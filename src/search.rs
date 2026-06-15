@@ -610,12 +610,12 @@ fn search<NODE: NodeType>(
         }
 
         if score >= bound && !is_win(score) {
-            if td.nmp_min_ply > 0 || depth < 16 {
+            if td.nmp_min_ply > 0 {
                 return score;
             }
 
             td.nmp_min_ply = ply as i32 + 3 * (depth - r) / 4;
-            let verified_score = search::<NonPV>(td, bound - 1, bound, depth - r, false, ply);
+            let verified_score = search::<NonPV>(td, bound - 1, bound, depth / 2, false, ply);
             td.nmp_min_ply = 0;
 
             if td.shared.status.get() == Status::STOPPED {
