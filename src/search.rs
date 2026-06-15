@@ -623,7 +623,7 @@ fn search<NODE: NodeType>(
             }
 
             if verified_score >= bound {
-                return score;
+                return verified_score;
             }
 
             depth -= 1;
