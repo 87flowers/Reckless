@@ -1150,6 +1150,7 @@ fn search<NODE: NodeType>(
     }
 
     if !(excluded || NODE::ROOT && td.pv_index > 0) {
+        let tt_pv = NODE::PV || (tt_pv && (bound == Bound::Exact || entry.map_or(false, |e| e.relative_age < 8)));
         td.shared.tt.write(hash, depth, raw_eval, best_score, bound, best_move, ply, tt_pv, NODE::PV);
     }
 
