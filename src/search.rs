@@ -707,7 +707,7 @@ fn search<NODE: NodeType>(
         }
 
         // Multi-Cut
-        if tt_score >= beta && singular_score >= singular_beta && !is_decisive(singular_score) {
+        if tt_score >= beta && singular_score >= tt_score && !is_decisive(singular_score) {
             return lerp(singular_score, beta, 0.4027);
         }
 
