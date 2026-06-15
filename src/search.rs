@@ -724,6 +724,7 @@ fn search<NODE: NodeType>(
             return lerp(singular_score, beta, 0.4027);
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
+            tt_pv = NODE::PV;
         }
         // Negative Extensions
         else if tt_score >= beta || cut_node {
