@@ -706,6 +706,11 @@ fn search<NODE: NodeType>(
             return Score::ZERO;
         }
 
+        // Multi-Cut
+        if tt_score >= beta && singular_score >= singular_beta && !is_decisive(singular_score) {
+            return lerp(singular_score, beta, 0.4027);
+        }
+
         if singular_score < singular_beta {
             let double_margin = 195 * NODE::PV as i32 + 48 * (NODE::PV && !tt_was_pv) as i32
                 - 16 * tt_move.is_quiet() as i32
@@ -719,10 +724,8 @@ fn search<NODE: NodeType>(
             extension += (singular_score < singular_beta - double_margin) as i32;
             extension += (singular_score < singular_beta - triple_margin) as i32;
         }
-        // Multi-Cut
-        else if singular_score >= beta && !is_decisive(singular_score) {
-            return lerp(singular_score, beta, 0.4027);
-        } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
+        // Alternate Move
+        else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
         }
         // Negative Extensions
