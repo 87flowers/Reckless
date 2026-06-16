@@ -648,6 +648,7 @@ fn search<NODE: NodeType>(
             }
 
             make_move(td, ply, mv);
+            td.stack[ply].is_probcut = true;
 
             let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
 
@@ -667,6 +668,7 @@ fn search<NODE: NodeType>(
                 }
             }
 
+            td.stack[ply].is_probcut = false;
             undo_move(td, mv);
 
             if td.shared.status.get() == Status::STOPPED {
@@ -871,6 +873,8 @@ fn search<NODE: NodeType>(
             } else if cut_node {
                 reduction += 1852;
                 reduction += 2204 * tt_move.is_null() as i32;
+            } else if td.stack[ply - 1].is_probcut {
+                reduction += 1024;
             }
 
             if td.board.in_check() {
@@ -933,6 +937,8 @@ fn search<NODE: NodeType>(
             } else if cut_node {
                 reduction += 1260;
                 reduction += 2168 * tt_move.is_null() as i32;
+            } else if td.stack[ply - 1].is_probcut {
+                reduction += 1024;
             }
 
             if td.cutoff_count[ply + 1] > 2 {
