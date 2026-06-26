@@ -532,6 +532,7 @@ fn search<NODE: NodeType>(
     };
 
     let improving = improvement > 0;
+    let no_enemy_threats = (td.board.all_threats() & td.board.colors(stm)).is_empty();
 
     // Razoring
     if !NODE::PV
@@ -553,7 +554,7 @@ fn search<NODE: NodeType>(
                 + (1140 * depth * depth / 128 - 120 * improvement / 1024
                     + 22 * depth
                     + 669 * correction_value.abs() / 1024
-                    - 54 * (td.board.all_threats() & td.board.colors(stm)).is_empty() as i32
+                    - 54 * no_enemy_threats as i32
                     - 19)
                     .max(2)
         && !is_loss(beta)
@@ -629,7 +630,7 @@ fn search<NODE: NodeType>(
     }
 
     // ProbCut
-    let mut probcut_beta = beta + 254 - 85 * improving as i32;
+    let mut probcut_beta = beta + 254 - 85 * improving as i32 - 32 * no_enemy_threats as i32;
 
     if cut_node
         && !is_win(beta)
