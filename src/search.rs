@@ -674,24 +674,22 @@ fn search<NODE: NodeType>(
             }
 
             if score >= probcut_beta {
-                td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, mv, ply, tt_pv, false);
-
-                if is_decisive(score) {
-                    return score;
-                }
-                return lerp(score, beta, 0.2695);
-            }
-
-            if score < alpha - 200 {
-                let noisy_malus = (175 * probcut_depth).min(1252) - 58;
+                let noisy_bonus = (96 * probcut_depth).min(885);
 
                 td.noisy_history.update(
                     td.board.all_threats(),
                     td.board.moved_piece(mv),
                     mv.to(),
                     td.board.type_on(mv.to()),
-                    -noisy_malus,
+                    noisy_bonus,
                 );
+
+                td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, mv, ply, tt_pv, false);
+
+                if is_decisive(score) {
+                    return score;
+                }
+                return lerp(score, beta, 0.2695);
             }
         }
     }
