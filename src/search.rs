@@ -682,7 +682,7 @@ fn search<NODE: NodeType>(
                 return lerp(score, beta, 0.2695);
             }
 
-            if score < alpha {
+            if score < alpha - 200 {
                 let noisy_malus = (175 * probcut_depth).min(1252) - 58;
 
                 td.noisy_history.update(
