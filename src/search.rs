@@ -635,7 +635,6 @@ fn search<NODE: NodeType>(
         && !is_win(beta)
         && if is_valid(tt_score) { tt_score >= probcut_beta && !is_decisive(tt_score) } else { eval >= beta }
         && !tt_move.is_quiet()
-        && td.last_pc_ply.map_or(true, |last_pc_ply| (ply - last_pc_ply) % 2 == 0)
     {
         let mut move_picker = MovePicker::new(Move::NULL, Some(probcut_beta - eval));
 
@@ -876,6 +875,9 @@ fn search<NODE: NodeType>(
             } else if cut_node {
                 reduction += 1852;
                 reduction += 2204 * tt_move.is_null() as i32;
+            } else if let Some(last_pc_ply) = td.last_pc_ply {
+                let diff = ply - last_pc_ply;
+                reduction += 3072 / (diff as i32 * 3 + depth);
             }
 
             if td.board.in_check() {
@@ -938,6 +940,9 @@ fn search<NODE: NodeType>(
             } else if cut_node {
                 reduction += 1260;
                 reduction += 2168 * tt_move.is_null() as i32;
+            } else if let Some(last_pc_ply) = td.last_pc_ply {
+                let diff = ply - last_pc_ply;
+                reduction += 3072 / (diff as i32 * 3 + depth);
             }
 
             if td.cutoff_count[ply + 1] > 2 {
