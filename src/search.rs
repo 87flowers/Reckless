@@ -601,7 +601,10 @@ fn search<NODE: NodeType>(
             beta
         };
 
-        let score = -search::<NonPV>(td, -bound, -bound + 1, depth - r, false, ply + 1);
+        let mut score = -qsearch::<NonPV>(td, -bound, -bound + 1, ply + 1);
+        if score >= beta && depth - r > 0 {
+            score = -search::<NonPV>(td, -bound, -bound + 1, depth - r, false, ply + 1);
+        }
 
         td.board.undo_null_move();
 
