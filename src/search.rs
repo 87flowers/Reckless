@@ -635,7 +635,7 @@ fn search<NODE: NodeType>(
         && !is_win(beta)
         && if is_valid(tt_score) { tt_score >= probcut_beta && !is_decisive(tt_score) } else { eval >= beta }
         && !tt_move.is_quiet()
-        && td.last_pc_ply.map_or(true, |last_pc_ply| (ply - last_pc_ply) % 2 == 0)
+        && ply as i32 >= td.pc_min_ply
     {
         let mut move_picker = MovePicker::new(Move::NULL, Some(probcut_beta - eval));
 
@@ -649,8 +649,8 @@ fn search<NODE: NodeType>(
             }
 
             make_move(td, ply, mv);
-            let prev_last_pc_ply = td.last_pc_ply;
-            td.last_pc_ply = Some(ply);
+            let prev_pc_min_ply = td.pc_min_ply;
+            td.pc_min_ply = (ply + 6) as i32;
 
             let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
 
@@ -670,7 +670,7 @@ fn search<NODE: NodeType>(
                 }
             }
 
-            td.last_pc_ply = prev_last_pc_ply;
+            td.pc_min_ply = prev_pc_min_ply;
             undo_move(td, mv);
 
             if td.shared.status.get() == Status::STOPPED {
