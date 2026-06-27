@@ -636,6 +636,7 @@ fn search<NODE: NodeType>(
         && if is_valid(tt_score) { tt_score >= probcut_beta && !is_decisive(tt_score) } else { eval >= beta }
         && !tt_move.is_quiet()
     {
+        let mut noisy_moves = ArrayVec::<Move, 32>::new();
         let mut move_picker = MovePicker::new(Move::NULL, Some(probcut_beta - eval));
 
         while let Some(mv) = move_picker.next::<NODE>(td, true, ply) {
@@ -675,6 +676,7 @@ fn search<NODE: NodeType>(
 
             if score >= probcut_beta {
                 let noisy_bonus = (96 * probcut_depth).min(885);
+                let noisy_malus = (175 * probcut_depth).min(1252);
 
                 td.noisy_history.update(
                     td.board.all_threats(),
@@ -683,6 +685,15 @@ fn search<NODE: NodeType>(
                     td.board.type_on(mv.to()),
                     noisy_bonus,
                 );
+                for &mv in noisy_moves.iter() {
+                    td.noisy_history.update(
+                        td.board.all_threats(),
+                        td.board.moved_piece(mv),
+                        mv.to(),
+                        td.board.type_on(mv.to()),
+                        -noisy_malus,
+                    );
+                }
 
                 td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, mv, ply, tt_pv, false);
 
@@ -692,16 +703,8 @@ fn search<NODE: NodeType>(
                 return lerp(score, beta, 0.2695);
             }
 
-            if score < alpha - 100 {
-                let noisy_malus = (175 * probcut_depth).min(1252);
-
-                td.noisy_history.update(
-                    td.board.all_threats(),
-                    td.board.moved_piece(mv),
-                    mv.to(),
-                    td.board.type_on(mv.to()),
-                    -noisy_malus,
-                );
+            if score < alpha - 100 && noisy_moves.len() < 32 {
+                noisy_moves.push(mv);
             }
         }
     }
