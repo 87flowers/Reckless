@@ -691,6 +691,18 @@ fn search<NODE: NodeType>(
                 }
                 return lerp(score, beta, 0.2695);
             }
+
+            if score < alpha - 100 {
+                let noisy_malus = (175 * probcut_depth).min(1252);
+
+                td.noisy_history.update(
+                    td.board.all_threats(),
+                    td.board.moved_piece(mv),
+                    mv.to(),
+                    td.board.type_on(mv.to()),
+                    -noisy_malus,
+                );
+            }
         }
     }
 
