@@ -540,6 +540,7 @@ fn search<NODE: NodeType>(
         && alpha < 2048
         && !tt_move.is_quiet()
         && tt_bound != Bound::Lower
+        && td.last_pc_ply.map_or(true, |last_pc_ply| (ply - last_pc_ply) % 2 == 1)
     {
         return qsearch::<NonPV>(td, alpha, beta, ply);
     }
@@ -635,7 +636,6 @@ fn search<NODE: NodeType>(
         && !is_win(beta)
         && if is_valid(tt_score) { tt_score >= probcut_beta && !is_decisive(tt_score) } else { eval >= beta }
         && !tt_move.is_quiet()
-        && td.last_pc_ply.map_or(true, |last_pc_ply| (ply - last_pc_ply) % 2 == 0)
     {
         let mut move_picker = MovePicker::new(Move::NULL, Some(probcut_beta - eval));
 
