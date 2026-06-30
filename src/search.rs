@@ -852,7 +852,7 @@ fn search<NODE: NodeType>(
             reduction += 326 * (is_valid(tt_score) && tt_depth < depth) as i32;
             reduction += 1024 * is_win(beta) as i32;
 
-            reduction += 32 * td.board.fiftymove_clock() as i32;
+            reduction += 64 * td.board.fiftymove_clock() as i32;
 
             if is_quiet {
                 reduction += 2171;
