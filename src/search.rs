@@ -1083,7 +1083,7 @@ fn search<NODE: NodeType>(
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
 
             for (i, &mv) in quiet_moves.iter().enumerate() {
-                let denom = 1024 + 45 * i as i32;
+                let denom = 1024 + 45 * i as i32 - 100 * (mv == tt_move && extension < 0) as i32;
                 let scale = 1024_i32 * 1024 / (denom * denom / 1024);
                 td.quiet_history.update(td.board.all_threats(), stm, mv, -quiet_malus * scale / 1024);
                 td.pawn_history.update(
