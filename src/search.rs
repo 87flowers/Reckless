@@ -536,7 +536,7 @@ fn search<NODE: NodeType>(
     // Razoring
     if !NODE::PV
         && !in_check
-        && estimated_score < alpha - 237 - 254 * depth * depth
+        && estimated_score < alpha - 37 - 254 * depth * depth - 420 * correction_value.abs() / 1024
         && alpha < 2048
         && !tt_move.is_quiet()
         && tt_bound != Bound::Lower
