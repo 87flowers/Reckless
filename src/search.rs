@@ -1060,13 +1060,15 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        let extension_bonus = (best_move == tt_move) as i32 * (extension + 1);
+
         let noisy_bonus = (96 * depth).min(885) - 43 - 87 * cut_node as i32;
         let noisy_malus = (175 * depth).min(1252) - 58 - 16 * noisy_moves.len() as i32;
 
-        let quiet_bonus = (184 * depth).min(1742) - 72 - 42 * cut_node as i32;
+        let quiet_bonus = (184 * depth).min(1742) - 72 - 42 * cut_node as i32 + 16 * extension_bonus;
         let quiet_malus = (171 * depth).min(1099) - 46 - 31 * quiet_moves.len() as i32;
 
-        let cont_bonus = (97 * depth).min(1098) - 74 - 48 * cut_node as i32;
+        let cont_bonus = (97 * depth).min(1098) - 74 - 48 * cut_node as i32 + 16 * extension_bonus;
         let cont_malus = (414 * depth).min(949) - 49 - 17 * quiet_moves.len() as i32;
 
         if best_move.is_noisy() {
