@@ -721,7 +721,11 @@ fn search<NODE: NodeType>(
         }
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
-            return lerp(singular_score, beta, 0.4027);
+            if !NODE::PV {
+                return lerp(singular_score, beta, 0.4027);
+            }
+            depth -= depth / 4;
+            extension = 1;
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
         }
