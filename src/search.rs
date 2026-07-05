@@ -736,7 +736,7 @@ fn search<NODE: NodeType>(
     }
 
     // Internal Iterative Deepening (IID)
-    if !NODE::ROOT && NODE::PV && depth >= 8 && !in_check && !excluded && tt_move.is_null() {
+    if !NODE::ROOT && NODE::PV && td.id == 0 && depth >= 8 && !in_check && !excluded && tt_move.is_null() {
         let prev_in_iid = td.in_iid;
 
         td.in_iid = true;
