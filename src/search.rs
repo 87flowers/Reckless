@@ -687,6 +687,7 @@ fn search<NODE: NodeType>(
     // Singular Extensions (SE)
     let mut extension = 0;
     let mut singular_score = Score::NONE;
+    let mut alternate_move = Move::NULL;
 
     if !NODE::ROOT && !excluded && potential_singularity {
         debug_assert!(is_valid(tt_score));
@@ -699,6 +700,7 @@ fn search<NODE: NodeType>(
         td.excluded[ply] = tt_move;
         td.stack[ply].mv = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
+        alternate_move = td.stack[ply].mv;
         td.excluded[ply] = Move::NULL;
         td.stack[ply].tt_pv = tt_pv;
 
@@ -722,7 +724,7 @@ fn search<NODE: NodeType>(
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
             return lerp(singular_score, beta, 0.4027);
-        } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
+        } else if singular_score > tt_score && !alternate_move.is_null() {
             tt_move = Move::NULL;
         }
         // Negative Extensions
@@ -871,7 +873,8 @@ fn search<NODE: NodeType>(
                 reduction -= 685 * (is_valid(tt_score) && tt_depth >= depth) as i32;
             } else if cut_node {
                 reduction += 1852;
-                reduction += 2204 * tt_move.is_null() as i32;
+                reduction += 2000 * tt_move.is_null() as i32;
+                reduction += 800 * alternate_move.is_null() as i32;
             }
 
             if td.board.in_check() {
@@ -933,7 +936,8 @@ fn search<NODE: NodeType>(
                 reduction -= 1129 * (is_valid(tt_score) && tt_depth >= depth) as i32;
             } else if cut_node {
                 reduction += 1260;
-                reduction += 2168 * tt_move.is_null() as i32;
+                reduction += 2000 * tt_move.is_null() as i32;
+                reduction += 800 * alternate_move.is_null() as i32;
             }
 
             if td.cutoff_count[ply + 1] > 2 {
