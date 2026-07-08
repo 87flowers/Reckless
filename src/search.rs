@@ -581,6 +581,7 @@ fn search<NODE: NodeType>(
         && !(tt_bound == Bound::Lower
             && tt_move.is_capture()
             && td.board.piece_on(tt_move.to()).value() >= PieceType::Knight.value())
+        && tt_bound != Bound::Upper
     {
         debug_assert_ne!(td.stack[ply - 1].mv, Move::NULL);
 
