@@ -1216,12 +1216,14 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     let mut tt_score = Score::NONE;
     let mut tt_bound = Bound::None;
+    let mut tt_move = Move::NULL;
     let mut tt_pv = NODE::PV;
 
     // QS early TT cutoff
     if let Some(entry) = &entry {
         tt_score = entry.score;
         tt_bound = entry.bound;
+        tt_move = entry.mv;
         tt_pv |= entry.tt_pv;
 
         if is_valid(tt_score)
@@ -1296,7 +1298,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
         if !is_loss(best_score) {
             // Late Move Pruning (LMP)
-            if move_count >= 3 && !td.board.is_direct_check(mv) {
+            if move_count >= 2 + tt_move.is_present() as i32 && !td.board.is_direct_check(mv) {
                 break;
             }
 
