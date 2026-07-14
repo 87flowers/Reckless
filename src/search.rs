@@ -152,7 +152,7 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
                         } else {
                             reduction = reduction.min(1)
                         }
-                        delta += 60 * delta / 128;
+                        delta += (63 - 2 * depth.ilog2() as i32) * delta / 128;
                     }
                     _ => {
                         average[td.pv_index] = if average[td.pv_index] == Score::NONE {
