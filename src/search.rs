@@ -765,6 +765,7 @@ fn search<NODE: NodeType>(
 
         let is_quiet = mv.is_quiet();
         let is_direct_check = td.board.is_direct_check(mv);
+        let prev_fiftymove_clock = td.board.fiftymove_clock();
 
         let history = if is_quiet {
             td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
@@ -890,6 +891,10 @@ fn search<NODE: NodeType>(
                 reduction += (496 * (margin - 185) / 128).clamp(0, 2021);
             }
 
+            if prev_fiftymove_clock >= 80 && td.board.fiftymove_clock() == 0 {
+                reduction -= 768;
+            }
+
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 414 {
                 reduction += 136;
             }
@@ -946,6 +951,10 @@ fn search<NODE: NodeType>(
             if is_valid(tt_move_score) && is_valid(singular_score) {
                 let margin = tt_move_score - singular_score;
                 reduction += (351 * (margin - 188) / 128).clamp(0, 2167);
+            }
+
+            if prev_fiftymove_clock >= 80 && td.board.fiftymove_clock() == 0 {
+                reduction -= 768;
             }
 
             if mv == tt_move {
