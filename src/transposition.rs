@@ -300,9 +300,9 @@ const fn index(hash: u64, len: usize) -> usize {
     (((hash as u128) * (len as u128)) >> 64) as usize
 }
 
-/// Returns the verification key of the hash (bottom 16 bits).
+/// Returns the verification key of the hash (bottom 12 bits).
 const fn verification_key(hash: u64) -> u16 {
-    hash as u16
+    (hash & 0xFFF) as u16
 }
 
 /// Adjust mate distance from "plies from the root" to "plies from the current position".
