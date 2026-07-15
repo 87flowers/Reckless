@@ -197,13 +197,9 @@ impl MovePicker {
         };
 
         let cyclic_move = if ply >= 4 {
-            let pmv = td.stack[ply - 2].mv;
             let ppmv = td.stack[ply - 4].mv;
-            if pmv.to() == ppmv.from() && pmv.from() == ppmv.to() {
-                Move::new(ppmv.from(), ppmv.to(), MoveKind::Normal)
-            } else {
-                Move::NULL
-            }
+            let pmv = td.stack[ply - 2].mv;
+            if ppmv.to() == pmv.from() { Move::new(pmv.to(), ppmv.from(), MoveKind::Normal) } else { Move::NULL }
         } else {
             Move::NULL
         };
@@ -223,7 +219,7 @@ impl MovePicker {
                 - 8875 * threatened[pt].contains(mv.to()) as i32
                 + 3446 * offense[pt].contains(mv.to()) as i32
                 - 4494 * wall_pawns.contains(mv.from()) as i32
-                - 4096 * (mv == cyclic_move) as i32;
+                - 1024 * (mv == cyclic_move) as i32;
         }
     }
 }
