@@ -110,22 +110,32 @@ struct Cluster {
     keys: u64,
 }
 
+type VerificationKey = u32;
+
+/// Returns the verification key of the hash (bottom 21 bits).
+const fn verification_key(hash: u64) -> VerificationKey {
+    (hash & Cluster::KEY_MASK) as VerificationKey
+}
+
 impl Cluster {
-    const fn key(&self, index: usize) -> u16 {
-        verification_key(self.keys >> (index * 16))
+    const KEY_BITS: usize = 21;
+    const KEY_MASK: u64 = 0x1FFFFF;
+
+    const fn key(&self, index: usize) -> VerificationKey {
+        verification_key(self.keys >> (index * Self::KEY_BITS))
     }
 
-    const fn set_key(&mut self, index: usize, key: u16) {
-        self.keys &= !(0xFFFF << (index * 16));
-        self.keys |= (key as u64) << (index * 16);
+    const fn set_key(&mut self, index: usize, key: u32) {
+        self.keys &= !(Self::KEY_MASK << (index * Self::KEY_BITS));
+        self.keys |= (key as u64) << (index * Self::KEY_BITS);
     }
 
-    const fn lookup_key(&self, key: u16) -> usize {
-        let bits = 0x0001_0001_0001_0001;
+    const fn lookup_key(&self, key: VerificationKey) -> usize {
+        let bits = (1 << Self::KEY_BITS) | (1 << (Self::KEY_BITS * 2)) | (1 << (Self::KEY_BITS * 3));
         let needle = key as u64 * bits;
         let zeros = self.keys ^ needle;
-        let matches = zeros.wrapping_sub(bits) & !zeros & (bits << 15);
-        (matches.trailing_zeros() / 16) as usize
+        let matches = zeros.wrapping_sub(bits) & !zeros & (bits << (Self::KEY_BITS - 1));
+        matches.trailing_zeros() as usize / Self::KEY_BITS
     }
 }
 
@@ -298,11 +308,6 @@ const fn index(hash: u64, len: usize) -> usize {
     // Fast hash table index calculation
     // For details, see: https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
     (((hash as u128) * (len as u128)) >> 64) as usize
-}
-
-/// Returns the verification key of the hash (bottom 16 bits).
-const fn verification_key(hash: u64) -> u16 {
-    hash as u16
 }
 
 /// Adjust mate distance from "plies from the root" to "plies from the current position".
