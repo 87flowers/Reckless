@@ -3,7 +3,7 @@ use crate::{
     search::NodeType,
     setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     thread::ThreadData,
-    types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
+    types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveKind, MoveList, PieceType},
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
@@ -196,6 +196,18 @@ impl MovePicker {
             Bitboard(0)
         };
 
+        let cyclic_move = if ply >= 4 {
+            let pmv = td.stack[ply - 2].mv;
+            let ppmv = td.stack[ply - 4].mv;
+            if pmv.to() == ppmv.from() && pmv.from() == ppmv.to() {
+                Move::new(ppmv.from(), ppmv.to(), MoveKind::Normal)
+            } else {
+                Move::NULL
+            }
+        } else {
+            Move::NULL
+        };
+
         for entry in self.list.iter_mut() {
             let mv = entry.mv;
             let pt = td.board.type_on(mv.from());
@@ -210,7 +222,8 @@ impl MovePicker {
                 + 10723 * td.board.checking_squares(pt).contains(mv.to()) as i32
                 - 8875 * threatened[pt].contains(mv.to()) as i32
                 + 3446 * offense[pt].contains(mv.to()) as i32
-                - 4494 * wall_pawns.contains(mv.from()) as i32;
+                - 4494 * wall_pawns.contains(mv.from()) as i32
+                - 4096 * (mv == cyclic_move) as i32;
         }
     }
 }
