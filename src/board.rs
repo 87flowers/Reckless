@@ -137,9 +137,27 @@ impl Board {
         self.state.piece_threats[pt as usize]
     }
 
+    pub fn history_piece_threats(&self) -> [Bitboard; PieceType::NUM] {
+        let pawn_threats = self.piece_threats(PieceType::Pawn);
+        let minor_threats =
+            pawn_threats | self.piece_threats(PieceType::Knight) | self.piece_threats(PieceType::Bishop);
+        let rook_threats = minor_threats | self.piece_threats(PieceType::Rook);
+        [pawn_threats, pawn_threats, pawn_threats, minor_threats, rook_threats, self.state.all_threats]
+    }
+
     pub fn prior_threats(&self) -> Bitboard {
         debug_assert!(!self.state_stack.is_empty());
         self.state_stack[self.state_stack.len() - 1].all_threats
+    }
+
+    pub fn prior_history_piece_threats(&self) -> [Bitboard; PieceType::NUM] {
+        debug_assert!(!self.state_stack.is_empty());
+        let prev = &self.state_stack[self.state_stack.len() - 1];
+        let pawn_threats = prev.piece_threats[PieceType::Pawn];
+        let minor_threats =
+            pawn_threats | prev.piece_threats[PieceType::Knight] | prev.piece_threats[PieceType::Bishop];
+        let rook_threats = minor_threats | prev.piece_threats[PieceType::Rook];
+        [pawn_threats, pawn_threats, pawn_threats, minor_threats, rook_threats, prev.all_threats]
     }
 
     pub const fn captured_piece(&self) -> Piece {
@@ -208,6 +226,10 @@ impl Board {
 
     pub fn piece_on(&self, square: Square) -> Piece {
         self.mailbox[square]
+    }
+
+    pub fn moved_type(&self, mv: Move) -> PieceType {
+        self.mailbox[mv.from()].piece_type()
     }
 
     pub fn moved_piece(&self, mv: Move) -> Piece {

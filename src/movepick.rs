@@ -162,6 +162,8 @@ impl MovePicker {
             [Bitboard(0), pawn_threats, pawn_threats, minor_threats, rook_threats, Bitboard(0)]
         };
 
+        let history_threatened = td.board.history_piece_threats();
+
         let escape = [0, 8854, 8170, 14051, 20357, 0];
 
         // safe squares where we can attack an opponent piece
@@ -200,7 +202,7 @@ impl MovePicker {
             let mv = entry.mv;
             let pt = td.board.type_on(mv.from());
 
-            entry.score = 1763 * td.quiet_history.get(threats, side, mv) / 1024
+            entry.score = 1763 * td.quiet_history.get(history_threatened[pt], side, mv) / 1024
                 + 1024 * td.pawn_history.get(pawn_key, td.board.moved_piece(mv), mv.to()) / 1024
                 + 1614 * td.conthist(ply, 1, mv) / 1024
                 + 1066 * td.conthist(ply, 2, mv) / 1024
