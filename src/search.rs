@@ -444,6 +444,7 @@ fn search<NODE: NodeType>(
     }
 
     let correction_value = eval_correction(td, ply);
+    let multiplicative_correction = multiplicative_eval_correction(td);
 
     let raw_eval;
     let eval;
@@ -457,10 +458,10 @@ fn search<NODE: NodeType>(
         eval = td.stack[ply].eval;
     } else if let Some(entry) = &entry {
         raw_eval = if is_valid(entry.raw_eval) { entry.raw_eval } else { td.nnue.evaluate(&td.board) };
-        eval = correct_eval(td, raw_eval, correction_value);
+        eval = correct_eval(td, raw_eval, correction_value, multiplicative_correction);
     } else {
         raw_eval = td.nnue.evaluate(&td.board);
-        eval = correct_eval(td, raw_eval, correction_value);
+        eval = correct_eval(td, raw_eval, correction_value, multiplicative_correction);
 
         td.shared.tt.write(hash, TtDepth::SOME, raw_eval, Score::NONE, Bound::None, Move::NULL, ply, tt_pv, false);
     }
@@ -1169,6 +1170,7 @@ fn search<NODE: NodeType>(
         || (bound == Bound::Lower && best_score <= eval))
     {
         update_correction_histories(td, depth, best_score - eval, ply);
+        update_multiplicative_eval_correction(td, depth, best_score, eval);
     }
 
     debug_assert!(alpha < beta);
@@ -1237,6 +1239,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     }
 
     let correction_value = eval_correction(td, ply);
+    let multiplicative_correction = multiplicative_eval_correction(td);
 
     let raw_eval;
     let eval;
@@ -1252,7 +1255,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
             Some(entry) if is_valid(entry.raw_eval) => entry.raw_eval,
             _ => td.nnue.evaluate(&td.board),
         };
-        eval = correct_eval(td, raw_eval, correction_value);
+        eval = correct_eval(td, raw_eval, correction_value, multiplicative_correction);
         best_score = eval;
 
         if is_valid(tt_score)
@@ -1384,6 +1387,60 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
         / 64
 }
 
+fn multiplicative_eval_correction(td: &ThreadData) -> i32 {
+    let stm = td.board.side_to_move();
+    let bucket = td.board.fiftymove_clock_bucket();
+
+    frac_exp2(td.multiplicative_pawn.get(stm, td.board.pawn_key(), bucket))
+}
+
+const FRAC_BITS: u32 = 11;
+const FRAC_SCALE: i32 = 1 << FRAC_BITS;
+const FRAC_TABLE_SIZE: usize = 256;
+static mut FRAC_EXP2: [i32; FRAC_TABLE_SIZE] = [0; FRAC_TABLE_SIZE];
+static mut FRAC_LOG2: [i32; FRAC_TABLE_SIZE] = [0; FRAC_TABLE_SIZE];
+
+pub fn init_frac_tables() {
+    for k in 0..FRAC_TABLE_SIZE {
+        let frac = k as f64 / FRAC_TABLE_SIZE as f64;
+        let val = 2f64.powf(frac) * FRAC_SCALE as f64;
+        unsafe { FRAC_EXP2[k] = val.round() as i32 };
+    }
+
+    for k in 0..FRAC_TABLE_SIZE {
+        let arg = 1.0 + k as f64 / FRAC_TABLE_SIZE as f64;
+        let val = arg.log2() * FRAC_SCALE as f64;
+        unsafe { FRAC_LOG2[k] = val.round() as i32 };
+    }
+}
+
+fn frac_exp2(x: i32) -> i32 {
+    let integer_part = x >> FRAC_BITS;
+    let frac_part = x & ((1 << FRAC_BITS) - 1);
+
+    let idx = (frac_part as usize * FRAC_TABLE_SIZE) >> FRAC_BITS;
+    let exp2_frac = unsafe { FRAC_EXP2[idx] as i64 };
+
+    let result = if integer_part >= 0 { exp2_frac << integer_part } else { exp2_frac >> (-integer_part) };
+    result.clamp(i32::MIN as i64, i32::MAX as i64) as i32
+}
+
+fn frac_log2(x: i32) -> i32 {
+    if x <= 0 {
+        return i32::MIN; // Error case
+    }
+
+    let msb_pos = 31 - x.leading_zeros() as i32;
+
+    let normalized =
+        if msb_pos >= FRAC_BITS as i32 { x >> (msb_pos - FRAC_BITS as i32) } else { x << (FRAC_BITS as i32 - msb_pos) };
+
+    let idx = ((normalized - FRAC_SCALE) as usize * FRAC_TABLE_SIZE) >> FRAC_BITS;
+    let log2_frac = unsafe { FRAC_LOG2[idx] };
+
+    ((msb_pos - FRAC_BITS as i32) << FRAC_BITS) + log2_frac
+}
+
 fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: isize) {
     let stm = td.board.side_to_move();
     let bucket = td.board.fiftymove_clock_bucket();
@@ -1412,6 +1469,20 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
             bonus,
         );
     }
+}
+
+fn update_multiplicative_eval_correction(td: &ThreadData, depth: i32, best_score: i32, eval: i32) {
+    if eval == 0 {
+        return;
+    }
+
+    let diff = frac_log2(best_score * FRAC_SCALE / eval);
+
+    let stm = td.board.side_to_move();
+    let bucket = td.board.fiftymove_clock_bucket();
+    let bonus = (148 * depth * diff / 128).clamp(-2048, 2048);
+
+    td.multiplicative_pawn.update(stm, td.board.pawn_key(), bucket, bonus);
 }
 
 fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, sq: Square, bonus: i32) {
@@ -1447,4 +1518,25 @@ fn undo_move(td: &mut ThreadData, mv: Move) {
 
 fn lerp(a: i32, b: i32, t: f32) -> i32 {
     t.mul_add((b - a) as f32, a as f32) as i32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exp2() {
+        init_frac_tables();
+        assert_eq!(frac_exp2(FRAC_SCALE), 2 * FRAC_SCALE);
+        assert_eq!(frac_exp2(2 * FRAC_SCALE), 5792);
+        assert_eq!(frac_exp2(3 * FRAC_SCALE / 2), 4 * FRAC_SCALE);
+    }
+
+    #[test]
+    fn log2() {
+        init_frac_tables();
+        assert_eq!(frac_log2(3 * FRAC_SCALE / 2), 1198);
+        assert_eq!(frac_log2(2 * FRAC_SCALE), FRAC_SCALE);
+        assert_eq!(frac_log2(4 * FRAC_SCALE), 2 * FRAC_SCALE);
+    }
 }

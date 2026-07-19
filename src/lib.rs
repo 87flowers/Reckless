@@ -39,6 +39,7 @@ pub mod wasm;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run(buffer: std::collections::VecDeque<String>) {
+    search::init_frac_tables();
     lookup::initialize();
     nnue::initialize();
     uci::message_loop(buffer);
