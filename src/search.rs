@@ -1164,6 +1164,7 @@ fn search<NODE: NodeType>(
     }
 
     if !(in_check
+        || excluded
         || best_move.is_noisy()
         || (bound == Bound::Upper && best_score >= eval)
         || (bound == Bound::Lower && best_score <= eval))
