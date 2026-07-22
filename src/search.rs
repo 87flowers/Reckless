@@ -1381,6 +1381,11 @@ fn eval_correction(td: &ThreadData, ply: isize) -> i32 {
             td.stack[ply - 4].contcorrhist,
             td.stack[ply - 1].piece,
             td.stack[ply - 1].mv.to(),
+        )
+        + td.continuation_corrhist.get(
+            td.stack[ply - 6].contcorrhist,
+            td.stack[ply - 1].piece,
+            td.stack[ply - 1].mv.to(),
         ))
         / 64
 }
@@ -1408,6 +1413,15 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
     if td.stack[ply - 1].mv.is_present() && td.stack[ply - 4].mv.is_present() {
         td.continuation_corrhist.update(
             td.stack[ply - 4].contcorrhist,
+            td.stack[ply - 1].piece,
+            td.stack[ply - 1].mv.to(),
+            bonus,
+        );
+    }
+
+    if td.stack[ply - 1].mv.is_present() && td.stack[ply - 6].mv.is_present() {
+        td.continuation_corrhist.update(
+            td.stack[ply - 6].contcorrhist,
             td.stack[ply - 1].piece,
             td.stack[ply - 1].mv.to(),
             bonus,
