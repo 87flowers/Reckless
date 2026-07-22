@@ -485,8 +485,8 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
-    td.stack[ply + 1].killer = Move::NULL;
-    td.stack[ply + 1].killer_score = -Score::INFINITE;
+    td.stack[ply + 1].killer = [Move::NULL; 2];
+    td.stack[ply + 1].killer_score = [-Score::INFINITE; 2];
     td.cutoff_count[ply + 2] = 0;
 
     // Quiet move ordering using eval difference
@@ -687,26 +687,39 @@ fn search<NODE: NodeType>(
             }
         }
 
-        let killer = td.stack[ply].killer;
+        for i in 0..td.stack[ply].killer.len() {
+            let killer = td.stack[ply].killer[i];
+            let killer_score = td.stack[ply].killer_score[i];
 
-        if killer.is_present() && td.stack[ply].killer_score >= probcut_beta && td.board.is_legal(killer) {
-            let probcut_depth = depth - 4;
+            if killer.is_present() && killer_score >= probcut_beta && td.board.is_legal(killer) {
+                let probcut_depth = depth - 4;
 
-            make_move(td, ply, killer);
-            let score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
-            undo_move(td, killer);
+                make_move(td, ply, killer);
+                let score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
+                undo_move(td, killer);
 
-            if td.shared.status.get() == Status::STOPPED {
-                return Score::ZERO;
-            }
-
-            if score >= probcut_beta {
-                td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, killer, ply, tt_pv, false);
-
-                if is_decisive(score) {
-                    return score;
+                if td.shared.status.get() == Status::STOPPED {
+                    return Score::ZERO;
                 }
-                return lerp(score, beta, 0.2695);
+
+                if score >= probcut_beta {
+                    td.shared.tt.write(
+                        hash,
+                        probcut_depth + 1,
+                        raw_eval,
+                        score,
+                        Bound::Lower,
+                        killer,
+                        ply,
+                        tt_pv,
+                        false,
+                    );
+
+                    if is_decisive(score) {
+                        return score;
+                    }
+                    return lerp(score, beta, 0.2695);
+                }
             }
         }
     }
@@ -1105,10 +1118,7 @@ fn search<NODE: NodeType>(
                 noisy_bonus,
             );
         } else {
-            if td.stack[ply].killer_score < best_score {
-                td.stack[ply].killer = best_move;
-                td.stack[ply].killer_score = best_score;
-            }
+            update_killer(td, ply, best_move, best_score);
 
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
             td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(best_move), best_move.to(), quiet_bonus);
@@ -1450,6 +1460,22 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
         if entry.mv.is_present() {
             td.continuation_history.update(entry.conthist, piece, sq, bonus);
         }
+    }
+}
+
+fn update_killer(td: &mut ThreadData, ply: isize, best_move: Move, best_score: i32) {
+    if best_score >= td.stack[ply].killer_score[0] {
+        td.stack[ply].killer[1] = td.stack[ply].killer[0];
+        td.stack[ply].killer[0] = best_move;
+        td.stack[ply].killer_score[1] = td.stack[ply].killer_score[0];
+        td.stack[ply].killer_score[0] = best_score;
+        return;
+    }
+
+    if best_score >= td.stack[ply].killer_score[1] {
+        td.stack[ply].killer[1] = best_move;
+        td.stack[ply].killer_score[1] = best_score;
+        return;
     }
 }
 
