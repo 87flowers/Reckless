@@ -576,7 +576,7 @@ fn search<NODE: NodeType>(
                     .max(2)
         && ply as i32 >= td.nmp_min_ply
         && td.board.material() > 491
-        && !is_loss(beta)
+        && beta >= -1000
         && !is_win(estimated_score)
         && !(tt_bound == Bound::Lower
             && tt_move.is_capture()
