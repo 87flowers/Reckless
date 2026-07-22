@@ -695,7 +695,12 @@ fn search<NODE: NodeType>(
                 let probcut_depth = depth - 4;
 
                 make_move(td, ply, killer);
-                let score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
+
+                let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
+                if score >= probcut_beta {
+                    score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
+                }
+
                 undo_move(td, killer);
 
                 if td.shared.status.get() == Status::STOPPED {
