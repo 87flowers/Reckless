@@ -485,6 +485,8 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply + 1].killer = Move::NULL;
+    td.stack[ply + 1].killer_score = -Score::INFINITE;
     td.cutoff_count[ply + 2] = 0;
 
     // Quiet move ordering using eval difference
@@ -677,6 +679,29 @@ fn search<NODE: NodeType>(
 
             if score >= probcut_beta {
                 td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, mv, ply, tt_pv, false);
+
+                if is_decisive(score) {
+                    return score;
+                }
+                return lerp(score, beta, 0.2695);
+            }
+        }
+
+        let killer = td.stack[ply].killer;
+
+        if killer.is_present() && td.stack[ply].killer_score >= probcut_beta && td.board.is_legal(killer) {
+            let probcut_depth = depth - 4;
+
+            make_move(td, ply, killer);
+            let score = -search::<NonPV>(td, -probcut_beta, -probcut_beta + 1, probcut_depth, false, ply + 1);
+            undo_move(td, killer);
+
+            if td.shared.status.get() == Status::STOPPED {
+                return Score::ZERO;
+            }
+
+            if score >= probcut_beta {
+                td.shared.tt.write(hash, probcut_depth + 1, raw_eval, score, Bound::Lower, killer, ply, tt_pv, false);
 
                 if is_decisive(score) {
                     return score;
@@ -1080,6 +1105,11 @@ fn search<NODE: NodeType>(
                 noisy_bonus,
             );
         } else {
+            if td.stack[ply].killer_score < best_score {
+                td.stack[ply].killer = best_move;
+                td.stack[ply].killer_score = best_score;
+            }
+
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
             td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(best_move), best_move.to(), quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
