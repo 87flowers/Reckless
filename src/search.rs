@@ -850,7 +850,7 @@ fn search<NODE: NodeType>(
 
             reduction += 1412 * (bound == Bound::Exact) as i32;
 
-            reduction += 464 * (is_valid(tt_score) && tt_score <= alpha) as i32;
+            reduction += 464 * (is_valid(tt_score) && tt_score <= alpha && tt_bound != Bound::Lower) as i32;
             reduction += 326 * (is_valid(tt_score) && tt_depth < depth) as i32;
             reduction += 1024 * is_win(beta) as i32;
 
@@ -869,7 +869,7 @@ fn search<NODE: NodeType>(
 
             if tt_pv {
                 reduction -= 333;
-                reduction -= 611 * (is_valid(tt_score) && tt_score > alpha) as i32;
+                reduction -= 611 * (is_valid(tt_score) && tt_score > alpha && tt_bound != Bound::Upper) as i32;
                 reduction -= 685 * (is_valid(tt_score) && tt_depth >= depth) as i32;
             } else if cut_node {
                 reduction += 1852;
