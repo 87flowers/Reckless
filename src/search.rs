@@ -485,6 +485,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply].best_move = Move::NULL;
     td.cutoff_count[ply + 2] = 0;
 
     // Quiet move ordering using eval difference
@@ -700,9 +701,13 @@ fn search<NODE: NodeType>(
 
         td.excluded[ply] = tt_move;
         td.stack[ply].mv = Move::NULL;
+        td.stack[ply].best_move = Move::NULL;
         singular_score = search::<NonPV>(td, singular_beta - 1, singular_beta, singular_depth, cut_node, ply);
         td.excluded[ply] = Move::NULL;
         td.stack[ply].tt_pv = tt_pv;
+
+        let alt_move = td.stack[ply].best_move;
+        td.stack[ply].best_move = Move::NULL;
 
         if td.shared.status.get() == Status::STOPPED {
             return Score::ZERO;
@@ -723,6 +728,22 @@ fn search<NODE: NodeType>(
         }
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
+            let quiet_bonus = (100 * depth - 41).min(1091);
+            let cont_bonus = (60 * depth - 33).min(806);
+            if tt_move.is_present() && tt_move.is_quiet() {
+                td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
+                update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
+            }
+            if alt_move.is_present() && alt_move.is_quiet() {
+                td.quiet_history.update(td.board.all_threats(), stm, alt_move, quiet_bonus * 3 / 4);
+                update_continuation_histories(
+                    td,
+                    ply,
+                    td.board.moved_piece(alt_move),
+                    alt_move.to(),
+                    cont_bonus * 3 / 4,
+                );
+            }
             return lerp(singular_score, beta, 0.4027);
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
@@ -1062,6 +1083,8 @@ fn search<NODE: NodeType>(
     }
 
     if best_move.is_present() {
+        td.stack[ply].best_move = best_move;
+
         let noisy_bonus = (96 * depth).min(885) - 43 - 87 * cut_node as i32;
         let noisy_malus = (175 * depth).min(1252) - 58 - 16 * noisy_moves.len() as i32;
 
