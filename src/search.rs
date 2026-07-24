@@ -723,6 +723,12 @@ fn search<NODE: NodeType>(
         }
         // Multi-Cut
         else if singular_score >= beta && !is_decisive(singular_score) {
+            let quiet_bonus = (100 * depth - 41).min(1091);
+            let cont_bonus = (60 * depth - 33).min(806);
+            if tt_move.is_present() && tt_move.is_quiet() {
+                td.quiet_history.update(td.board.all_threats(), stm, tt_move, quiet_bonus);
+                update_continuation_histories(td, ply, td.board.moved_piece(tt_move), tt_move.to(), cont_bonus);
+            }
             return lerp(singular_score, beta, 0.4027);
         } else if singular_score > tt_score && td.stack[ply].mv != Move::NULL {
             tt_move = Move::NULL;
