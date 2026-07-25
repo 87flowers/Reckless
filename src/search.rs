@@ -650,6 +650,7 @@ fn search<NODE: NodeType>(
             }
 
             make_move(td, ply, mv);
+            td.stack[ply + 1].in_probcut = true;
 
             let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
 
@@ -669,6 +670,7 @@ fn search<NODE: NodeType>(
                 }
             }
 
+            td.stack[ply + 1].in_probcut = false;
             undo_move(td, mv);
 
             if td.shared.status.get() == Status::STOPPED {
@@ -892,6 +894,10 @@ fn search<NODE: NodeType>(
 
             if !NODE::PV && td.stack[ply - 1].reduction > reduction + 414 {
                 reduction += 136;
+            }
+
+            if td.stack[ply].in_probcut {
+                reduction += reduction * 4096 / (1024 * depth);
             }
 
             reduction += ((td.nodes() + td.id as u64 * 27) % 128) as i32 - 59;
