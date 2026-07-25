@@ -962,6 +962,10 @@ fn search<NODE: NodeType>(
                 reduction += 130;
             }
 
+            if td.stack[ply].in_probcut {
+                reduction += reduction * 4096 / (1024 * depth);
+            }
+
             reduction += ((td.nodes() + td.id as u64 * 26) % 128) as i32 - 56;
 
             let reduced_depth = new_depth - (reduction >= 2621) as i32 - (reduction >= 5579) as i32;
