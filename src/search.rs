@@ -903,9 +903,7 @@ fn search<NODE: NodeType>(
             td.stack[ply].reduction = 0;
             current_search_count += 1;
 
-            if score >= beta + 420 && reduced_depth >= depth - 3 {
-                // do nothing
-            } else if score > alpha {
+            if score > alpha {
                 if !NODE::ROOT {
                     new_depth += (score > best_score + 57) as i32;
                     new_depth -= (score < best_score + 9) as i32;
@@ -914,6 +912,17 @@ fn search<NODE: NodeType>(
                 if new_depth > reduced_depth {
                     score = -search::<NonPV>(td, -alpha - 1, -alpha, new_depth, !cut_node, ply + 1);
                     current_search_count += 1;
+                }
+
+                if mv.is_quiet() {
+                    if score <= alpha {
+                        let cont_malus = (400 * depth).min(900) - 50;
+                        update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), -cont_malus);
+                    }
+                    if score >= beta {
+                        let cont_bonus = (90 * depth).min(1000) - 80;
+                        update_continuation_histories(td, ply, td.board.moved_piece(mv), mv.to(), cont_bonus);
+                    }
                 }
             }
         }
