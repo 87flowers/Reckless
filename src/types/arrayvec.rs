@@ -41,6 +41,15 @@ impl<T: Copy, const N: usize> ArrayVec<T, N> {
         self.len += mask as usize;
     }
 
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            Some(unsafe { self.data.get_unchecked(self.len).assume_init() })
+        }
+    }
+
     pub const fn clear(&mut self) {
         self.len = 0;
     }

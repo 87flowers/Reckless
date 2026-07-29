@@ -640,7 +640,7 @@ fn search<NODE: NodeType>(
     {
         let mut move_picker = MovePicker::new(Move::NULL, Some(probcut_beta - eval));
 
-        while let Some(mv) = move_picker.next::<NODE>(td, true, ply) {
+        while let Some((mv, _)) = move_picker.next::<NODE>(td, true, ply) {
             if move_picker.stage() == Stage::BadNoisy {
                 break;
             }
@@ -749,7 +749,7 @@ fn search<NODE: NodeType>(
     let mut current_search_count = 0;
     let mut tt_move_score = Score::NONE;
 
-    while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
+    while let Some((mv, see)) = move_picker.next::<NODE>(td, skip_quiets, ply) {
         if mv == td.excluded[ply] {
             continue;
         }
@@ -829,7 +829,7 @@ fn search<NODE: NodeType>(
                 (-7 * depth * depth - 36 * depth - 39 * history / 1024 + 14).min(0)
             };
 
-            if !in_check && !td.board.see(mv, threshold) {
+            if !in_check && see < threshold {
                 continue;
             }
         }
@@ -1291,7 +1291,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
     let skip_quiets = |best_score| !in_check || !is_loss(best_score);
 
-    while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets(best_score), ply) {
+    while let Some((mv, see)) = move_picker.next::<NODE>(td, skip_quiets(best_score), ply) {
         move_count += 1;
 
         if !is_loss(best_score) {
@@ -1301,7 +1301,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
             }
 
             // Static Exchange Evaluation Pruning (SEE Pruning)
-            if is_valid(eval) && !td.board.see(mv, (alpha - eval) / 8 - correction_value.abs().min(68) - 74) {
+            if is_valid(eval) && see < (alpha - eval) / 8 - correction_value.abs().min(68) - 74 {
                 continue;
             }
         }

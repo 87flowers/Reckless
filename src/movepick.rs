@@ -21,6 +21,7 @@ pub struct MovePicker {
     threshold: Option<i32>,
     stage: Stage,
     bad_noisy: ArrayVec<Move, MAX_MOVES>,
+    bad_noisy_see: ArrayVec<i32, MAX_MOVES>,
     bad_noisy_idx: usize,
     noisy_count: usize,
 }
@@ -33,6 +34,7 @@ impl MovePicker {
             threshold,
             stage: if tt_move.is_present() { Stage::HashMove } else { Stage::GenerateNoisy },
             bad_noisy: ArrayVec::new(),
+            bad_noisy_see: ArrayVec::new(),
             bad_noisy_idx: 0,
             noisy_count: 0,
         }
@@ -42,12 +44,12 @@ impl MovePicker {
         self.stage
     }
 
-    pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
+    pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<(Move, i32)> {
         if self.stage == Stage::HashMove {
             self.stage = Stage::GenerateNoisy;
 
             if td.board.is_legal(self.tt_move) {
-                return Some(self.tt_move);
+                return Some((self.tt_move, td.board.see(self.tt_move)));
             }
         }
 
@@ -64,8 +66,11 @@ impl MovePicker {
                 let threshold = self.threshold.unwrap_or_else(|| {
                     if self.tt_move.is_quiet() && self.noisy_count > 2 { 1 } else { -entry.score / 47 + 116 }
                 });
-                if !td.board.see(entry.mv, threshold) {
+
+                let see = td.board.see(entry.mv);
+                if see < threshold {
                     self.bad_noisy.push(entry.mv);
+                    self.bad_noisy_see.push(see);
                     continue;
                 }
 
@@ -74,7 +79,7 @@ impl MovePicker {
                 }
 
                 self.noisy_count += 1;
-                return Some(entry.mv);
+                return Some((entry.mv, see));
             }
 
             if skip_quiets {
@@ -92,7 +97,8 @@ impl MovePicker {
                 if NODE::ROOT {
                     self.score_quiet(td, ply);
                 }
-                return Some(self.get_best_entry().mv);
+                let mv = self.get_best_entry().mv;
+                return Some((mv, td.board.see(mv)));
             }
 
             self.stage = Stage::BadNoisy;
@@ -101,8 +107,9 @@ impl MovePicker {
         // Stage::BadNoisy
         if self.bad_noisy_idx < self.bad_noisy.len() {
             let mv = self.bad_noisy[self.bad_noisy_idx];
+            let see = self.bad_noisy_see[self.bad_noisy_idx];
             self.bad_noisy_idx += 1;
-            return Some(mv);
+            return Some((mv, see));
         }
 
         None

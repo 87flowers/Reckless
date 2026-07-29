@@ -1,33 +1,22 @@
 use crate::{
     lookup::{bishop_attacks, ray_pass, rook_attacks},
-    types::{Bitboard, Color, Move, PieceType},
+    types::{ArrayVec, Bitboard, Color, Move, PieceType},
 };
 
 impl super::Board {
-    /// Checks if the static exchange evaluation (SEE) of a move meets the given `threshold`,
-    /// indicating that the sequence of captures on a single square, starting with the move,
-    /// results in a value greater than or equal to the threshold for the side to move.
-    ///
-    /// Promotions and castling always pass this check.
-    pub fn see(&self, mv: Move, threshold: i32) -> bool {
+    /// Simulates a full static exchange evaluation (SEE) and returns the exact value.
+    pub fn see(&self, mv: Move) -> i32 {
         if mv.is_castling() {
-            return true;
+            return 0;
         }
 
-        // In the best case, we win a piece, but still end up with a negative balance
-        let mut balance = self.move_value(mv) - threshold;
-        if balance < 0 {
-            return false;
-        }
+        let mut array = ArrayVec::<i32, 32>::new();
 
-        // In the worst case, we lose a piece, but still end up with a non-negative balance
-        balance -= if mv.is_promotion() { mv.promo_piece_type().value() } else { self.piece_on(mv.from()).value() };
+        let mut score = self.move_value(mv);
+        let mut current =
+            if mv.is_promotion() { mv.promo_piece_type().value() } else { self.piece_on(mv.from()).value() };
+        array.push(score);
 
-        if balance >= 0 {
-            return true;
-        }
-
-        // No need to set the to square for SEE
         let mut occupancies = self.occupancies();
         occupancies.clear(mv.from());
 
@@ -67,11 +56,9 @@ impl super::Board {
             occupancies.clear((self.pieces(attacker) & our_attackers).lsb());
             stm = !stm;
 
-            // Assume our piece is going to be captured
-            balance = -balance - 1 - attacker.value();
-            if balance >= 0 {
-                break;
-            }
+            score = current - score;
+            current = attacker.value();
+            array.push(score);
 
             // Capturing a piece may reveal a new sliding attacker
             if [PieceType::Pawn, PieceType::Bishop, PieceType::Queen].contains(&attacker) {
@@ -83,9 +70,11 @@ impl super::Board {
             attackers &= occupancies;
         }
 
-        // The last side to move has failed to capture back
-        // since it has no more attackers and, therefore, is losing
-        stm != self.side_to_move()
+        let mut score = array.pop().unwrap();
+        while let Some(current) = array.pop() {
+            score = current.min(-score);
+        }
+        score
     }
 
     fn move_value(&self, mv: Move) -> i32 {
