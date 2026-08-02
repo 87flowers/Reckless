@@ -59,10 +59,10 @@ impl Flags {
 /// Type of the score returned by the search.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Bound {
-    None,
-    Exact,
-    Lower,
-    Upper,
+    None = 0,
+    Exact = 1,
+    Lower = 2,
+    Upper = 3,
 }
 
 /// Internal representation of a transposition table entry (8 bytes).
@@ -250,7 +250,11 @@ impl TranspositionTable {
             entry.mv = mv;
         }
 
-        if !force && key == entry_key && depth + 4 + 2 * tt_pv as i32 <= entry.depth() && entry.flags.age() == tt_age {
+        if !force
+            && key == entry_key
+            && depth + 4 + 2 * tt_pv as i32 - bound as i32 <= entry.depth() - entry.flags.bound() as i32
+            && entry.flags.age() == tt_age
+        {
             return;
         }
 
