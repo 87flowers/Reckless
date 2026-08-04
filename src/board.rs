@@ -36,6 +36,7 @@ struct InternalState {
     all_threats: Bitboard,
     pinned: [Bitboard; Color::NUM],
     pinners: [Bitboard; Color::NUM],
+    discovered_checkee: [Bitboard; Color::NUM],
     checkers: Bitboard,
     checking_squares: [Bitboard; PieceType::NUM],
 }
@@ -428,6 +429,12 @@ impl Board {
         self.checking_squares(self.moved_piece(mv).piece_type()).contains(mv.to())
     }
 
+    pub fn is_discovered_check(&self, mv: Move) -> bool {
+        let stm = self.side_to_move();
+        self.state.discovered_checkee[stm].contains(mv.from())
+            && !ray_pass(self.king_square(!stm), mv.from()).contains(mv.to())
+    }
+
     pub fn update_threats(&mut self) {
         // The king is excluded from the occupancy bitboard when computing threats,
         // letting sliders "see through" it as if the king weren't blocking their path.
@@ -481,19 +488,26 @@ impl Board {
                     self.checking_squares(PieceType::Bishop) | self.checking_squares(PieceType::Rook);
             }
 
-            let diagonal = diagonal & bishop_attacks(king, self.colors(!color)) & self.colors(!color);
-            let orthogonal = orthogonal & rook_attacks(king, self.colors(!color)) & self.colors(!color);
+            let diagonal = diagonal & self.colors(!color);
+            let orthogonal = orthogonal & self.colors(!color);
+            let diagonal = diagonal & bishop_attacks(king, diagonal);
+            let orthogonal = orthogonal & rook_attacks(king, orthogonal);
 
             for square in diagonal | orthogonal {
-                let blockers = between(king, square) & self.colors(color);
-                match blockers.popcount() {
-                    0 => {
+                let between = between(king, square);
+                let friendly_blockers = between & self.colors(color);
+                let enemy_blockers = between & self.colors(!color);
+                match (friendly_blockers.popcount(), enemy_blockers.popcount()) {
+                    (0, 0) => {
                         debug_assert_eq!(color, stm);
                         self.state.checkers.set(square);
                     }
-                    1 => {
+                    (1, 0) => {
                         self.state.pinners[!color].set(square);
-                        self.state.pinned[color] |= blockers;
+                        self.state.pinned[color] |= friendly_blockers;
+                    }
+                    (0, 1) => {
+                        self.state.discovered_checkee[!color] |= enemy_blockers;
                     }
                     _ => (),
                 }

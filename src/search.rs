@@ -764,7 +764,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].move_count = move_count;
 
         let is_quiet = mv.is_quiet();
-        let is_direct_check = td.board.is_direct_check(mv);
+        let is_mv_check = td.board.is_direct_check(mv) || td.board.is_discovered_check(mv);
 
         let history = if is_quiet {
             td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
@@ -776,7 +776,7 @@ fn search<NODE: NodeType>(
         if !NODE::ROOT && !is_loss(best_score) {
             // Late Move Pruning (LMP)
             if !in_check
-                && !is_direct_check
+                && !is_mv_check
                 && is_quiet
                 && !is_win(beta)
                 && move_count as i32
@@ -794,7 +794,7 @@ fn search<NODE: NodeType>(
                 + 555 * correction_value.abs() / 1024
                 - 127;
 
-            if !in_check && !is_direct_check && is_quiet && depth < 14 && futility_value <= alpha {
+            if !in_check && !is_mv_check && is_quiet && depth < 14 && futility_value <= alpha {
                 if !is_decisive(best_score) && best_score < futility_value {
                     best_score = futility_value;
                 }
@@ -806,7 +806,7 @@ fn search<NODE: NodeType>(
             let noisy_futility_value = eval + 84 * depth + 82 * history / 1024 + 24;
 
             if !in_check
-                && !is_direct_check
+                && !is_mv_check
                 && depth < 11
                 && move_picker.stage() == Stage::BadNoisy
                 && noisy_futility_value <= alpha
@@ -1303,7 +1303,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
 
         if !is_loss(best_score) {
             // Late Move Pruning (LMP)
-            if move_count >= 3 && !td.board.is_direct_check(mv) {
+            if move_count >= 3 && !td.board.is_direct_check(mv) && !td.board.is_discovered_check(mv) {
                 break;
             }
 
