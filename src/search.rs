@@ -1402,6 +1402,8 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
     let stm = td.board.side_to_move();
     let bucket = td.board.fiftymove_clock_bucket();
     let corrhist = td.corrhist();
+    let partition = td.board.partition_keys();
+
     let bonus = (148 * depth * diff / 128).clamp(-4678, 2496);
 
     corrhist.pawn.update(stm, td.board.pawn_key(), bucket, bonus);
@@ -1426,6 +1428,11 @@ fn update_correction_histories(td: &mut ThreadData, depth: i32, diff: i32, ply: 
             bonus,
         );
     }
+
+    corrhist.partition[0].update(stm, partition[0], bucket, bonus);
+    corrhist.partition[1].update(stm, partition[1], bucket, bonus);
+    corrhist.partition[2].update(stm, partition[2], bucket, bonus);
+    corrhist.partition[3].update(stm, partition[3], bucket, bonus);
 }
 
 fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, sq: Square, bonus: i32) {

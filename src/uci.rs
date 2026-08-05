@@ -182,6 +182,9 @@ fn reset(threads: &mut ThreadPool, shared: &Arc<SharedContext>) {
         corrhist.pawn.clear();
         corrhist.non_pawn[Color::White].clear();
         corrhist.non_pawn[Color::Black].clear();
+        for i in 0..corrhist.partition.len() {
+            corrhist.partition[i].clear();
+        }
     }
 }
 
