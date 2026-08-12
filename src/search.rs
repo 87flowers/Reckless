@@ -877,7 +877,10 @@ fn search<NODE: NodeType>(
             }
 
             if td.board.in_check() {
-                reduction -= 200 + 755 * is_direct_check as i32;
+                reduction -= 300;
+                reduction -= 500 * is_direct_check as i32;
+                reduction -= 200 * mv.is_capture() as i32;
+                reduction -= 200 * (!is_direct_check && mv.is_capture()) as i32;
             }
 
             if td.cutoff_count[ply + 1] > 2 {
