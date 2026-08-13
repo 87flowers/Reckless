@@ -68,10 +68,6 @@ impl MovePicker {
                     continue;
                 }
 
-                if ply < 2 {
-                    self.score_noisy(td);
-                }
-
                 self.noisy_count += 1;
                 return Some(entry.mv);
             }
@@ -88,9 +84,6 @@ impl MovePicker {
 
         if self.stage == Stage::Quiet {
             if !skip_quiets && !self.list.is_empty() {
-                if ply < 2 {
-                    self.score_quiet(td, ply);
-                }
                 return Some(self.get_best_entry().mv);
             }
 
