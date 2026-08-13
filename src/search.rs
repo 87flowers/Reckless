@@ -322,12 +322,20 @@ fn search<NODE: NodeType>(
     }
 
     let draw_score = draw(td);
-    if !NODE::ROOT && alpha < draw_score && td.board.upcoming_repetition(ply as usize) {
+    let rep_move = if !NODE::ROOT
+        && alpha < draw_score
+        && let rep_move = td.board.upcoming_repetition(ply as usize)
+        && rep_move.is_present()
+        && td.board.is_legal(rep_move)
+    {
         alpha = draw_score;
         if alpha >= beta {
             return alpha;
         }
-    }
+        rep_move
+    } else {
+        Move::NULL
+    };
 
     if NODE::PV {
         td.sel_depth = td.sel_depth.max(ply as i32);
@@ -749,8 +757,16 @@ fn search<NODE: NodeType>(
     let mut current_search_count = 0;
     let mut tt_move_score = Score::NONE;
 
+    if !NODE::ROOT && NODE::PV && rep_move.is_present() {
+        best_score = draw_score;
+        best_move = rep_move;
+        bound = Bound::Exact;
+        td.pv_table.clear((ply + 1) as usize);
+        td.pv_table.update(ply as usize, rep_move);
+    }
+
     while let Some(mv) = move_picker.next::<NODE>(td, skip_quiets, ply) {
-        if mv == td.excluded[ply] {
+        if mv == td.excluded[ply] || mv == rep_move {
             continue;
         }
 
@@ -1184,7 +1200,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
     debug_assert!(NODE::PV || alpha == beta - 1);
 
     let draw_score = draw(td);
-    if alpha < draw_score && td.board.upcoming_repetition(ply as usize) {
+    if alpha < draw_score && td.board.upcoming_repetition(ply as usize).is_present() {
         alpha = draw_score;
         if alpha >= beta {
             return alpha;

@@ -5,8 +5,8 @@ use crate::{
     },
     setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     types::{
-        Bitboard, Castling, CastlingKind, Color, File, Keys, Move, PAWN_HOME_RANK, PROMO_RANK, Piece, PieceType,
-        Square, ZOBRIST,
+        Bitboard, Castling, CastlingKind, Color, File, Keys, Move, MoveKind, PAWN_HOME_RANK, PROMO_RANK, Piece,
+        PieceType, Square, ZOBRIST,
     },
 };
 
@@ -295,10 +295,12 @@ impl Board {
     /// paper to detect cycles one ply before they appear in the search of a game tree.
     ///
     /// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
-    pub fn upcoming_repetition(&self, ply: usize) -> bool {
+    ///
+    /// This returns the reversing move.
+    pub fn upcoming_repetition(&self, ply: usize) -> Move {
         let half_moves = self.state.plies_from_null.min(self.fiftymove_clock() as usize);
         if half_moves < 3 {
-            return false;
+            return Move::NULL;
         }
 
         let current_key = self.state.keys.full();
@@ -327,14 +329,20 @@ impl Board {
                 }
             }
 
-            if (between(cuckoo_a(cuckoo_index), cuckoo_b(cuckoo_index)) & self.occupancies()).is_empty()
-                && (ply > compared_ply || stack[index].repetition != 0)
-            {
-                return true;
+            let a = cuckoo_a(cuckoo_index);
+            let b = cuckoo_b(cuckoo_index);
+
+            if (between(a, b) & self.occupancies()).is_empty() && (ply > compared_ply || stack[index].repetition != 0) {
+                if self.colors(self.side_to_move()).contains(a) && !self.occupancies().contains(b) {
+                    return Move::new(a, b, MoveKind::Normal);
+                }
+                if self.colors(self.side_to_move()).contains(b) && !self.occupancies().contains(a) {
+                    return Move::new(b, a, MoveKind::Normal);
+                }
             }
         }
 
-        false
+        Move::NULL
     }
 
     pub fn attackers_to(&self, square: Square, occupancies: Bitboard) -> Bitboard {
