@@ -1,6 +1,5 @@
 use crate::{
     lookup::king_attacks,
-    search::NodeType,
     setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     thread::ThreadData,
     types::{ArrayVec, Bitboard, MAX_MOVES, Move, MoveEntry, MoveList, PieceType},
@@ -42,7 +41,7 @@ impl MovePicker {
         self.stage
     }
 
-    pub fn next<NODE: NodeType>(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
+    pub fn next(&mut self, td: &ThreadData, skip_quiets: bool, ply: isize) -> Option<Move> {
         if self.stage == Stage::HashMove {
             self.stage = Stage::GenerateNoisy;
 
@@ -69,7 +68,7 @@ impl MovePicker {
                     continue;
                 }
 
-                if NODE::ROOT {
+                if ply < 2 {
                     self.score_noisy(td);
                 }
 
@@ -89,7 +88,7 @@ impl MovePicker {
 
         if self.stage == Stage::Quiet {
             if !skip_quiets && !self.list.is_empty() {
-                if NODE::ROOT {
+                if ply < 2 {
                     self.score_quiet(td, ply);
                 }
                 return Some(self.get_best_entry().mv);
