@@ -38,6 +38,7 @@ struct InternalState {
     pinners: [Bitboard; Color::NUM],
     checkers: Bitboard,
     checking_squares: [Bitboard; PieceType::NUM],
+    occupancy: Bitboard,
 }
 
 #[derive(Clone)]
@@ -236,6 +237,7 @@ impl Board {
 
     pub fn update_hash(&mut self, piece: Piece, square: Square) {
         self.state.keys.toggle(piece, square);
+        self.state.occupancy ^= square.to_bb();
     }
 
     /// Checks for a material draw
@@ -301,33 +303,42 @@ impl Board {
             return false;
         }
 
+        let stm = self.side_to_move();
         let current_key = self.state.keys.full();
         let stack = &self.state_stack;
         let len = stack.len();
 
-        let mut index = len - 1;
-        let mut other = current_key ^ stack[index].keys.full() ^ ZOBRIST.side;
-
         for compared_ply in (3..=half_moves).step_by(2) {
-            index -= 1;
-            other ^= stack[index].keys.full() ^ stack[index - 1].keys.full() ^ ZOBRIST.side;
-            index -= 1;
+            let index = len - compared_ply;
 
-            if other != 0 {
+            if stack[index].keys.non_pawn(!stm) != self.state.keys.non_pawn(!stm) {
                 continue;
             }
 
-            let diff = current_key ^ stack[index].keys.full();
-            let mut cuckoo_index = h1(diff);
+            let bb_diff = self.state.occupancy ^ stack[index].occupancy;
+            if bb_diff.popcount() != 2 {
+                continue;
+            }
 
-            if cuckoo(cuckoo_index) != diff {
-                cuckoo_index = h2(diff);
-                if cuckoo(cuckoo_index) != diff {
+            let key_diff = current_key ^ stack[index].keys.full();
+            let mut cuckoo_index = h1(key_diff);
+
+            if cuckoo(cuckoo_index) != key_diff {
+                cuckoo_index = h2(key_diff);
+                if cuckoo(cuckoo_index) != key_diff {
                     continue;
                 }
             }
 
-            if (between(cuckoo_a(cuckoo_index), cuckoo_b(cuckoo_index)) & self.occupancies()).is_empty()
+            let from = (bb_diff & self.state.occupancy).lsb();
+            let to = (bb_diff & stack[index].occupancy).lsb();
+            let piece = self.piece_on(from);
+
+            if key_diff != ZOBRIST.side ^ ZOBRIST.pieces[piece][from] ^ ZOBRIST.pieces[piece][to] {
+                continue;
+            }
+
+            if (between(from, to) & self.occupancies()).is_empty()
                 && (ply > compared_ply || stack[index].repetition != 0)
             {
                 return true;
@@ -503,6 +514,7 @@ impl Board {
 
     pub fn update_hash_keys(&mut self) {
         self.state.keys = Keys::default();
+        self.state.occupancy = Bitboard::default();
 
         for piece in 0..Piece::NUM {
             let piece = Piece::from_index(piece);
