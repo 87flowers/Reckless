@@ -321,14 +321,6 @@ impl Board {
             }
 
             let key_diff = current_key ^ stack[index].keys.full();
-            let mut cuckoo_index = h1(key_diff);
-
-            if cuckoo(cuckoo_index) != key_diff {
-                cuckoo_index = h2(key_diff);
-                if cuckoo(cuckoo_index) != key_diff {
-                    continue;
-                }
-            }
 
             let from = (bb_diff & self.state.occupancy).lsb();
             let to = (bb_diff & stack[index].occupancy).lsb();
