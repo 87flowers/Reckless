@@ -302,18 +302,16 @@ impl Board {
         }
 
         let current_key = self.state.keys.full();
+        let other_key = self.state.keys.non_pawn(!self.side_to_move());
         let stack = &self.state_stack;
         let len = stack.len();
 
         let mut index = len - 1;
-        let mut other = current_key ^ stack[index].keys.full() ^ ZOBRIST.side;
 
         for compared_ply in (3..=half_moves).step_by(2) {
-            index -= 1;
-            other ^= stack[index].keys.full() ^ stack[index - 1].keys.full() ^ ZOBRIST.side;
-            index -= 1;
+            index -= 2;
 
-            if other != 0 {
+            if stack[index].keys.non_pawn(!self.side_to_move()) != other_key {
                 continue;
             }
 
