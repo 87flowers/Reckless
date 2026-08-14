@@ -2,8 +2,8 @@ use crate::{
     lookup::{attacks, between, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
     setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     types::{
-        Bitboard, Castling, CastlingKind, Color, File, Keys, Move, PAWN_HOME_RANK, PROMO_RANK, Piece, PieceType,
-        Square, ZOBRIST,
+        Bitboard, Castling, CastlingKind, Color, File, Keys, Move, MoveKind, PAWN_HOME_RANK, PROMO_RANK, Piece,
+        PieceType, Square, ZOBRIST,
     },
 };
 
@@ -318,12 +318,9 @@ impl Board {
             let to = (bb_diff & stack[index].occupancy).lsb();
             let piece = self.piece_on(from);
 
-            if key_diff != ZOBRIST.side ^ ZOBRIST.pieces[piece][from] ^ ZOBRIST.pieces[piece][to] {
-                continue;
-            }
-
-            if (between(from, to) & self.occupancies()).is_empty()
+            if key_diff == ZOBRIST.side ^ ZOBRIST.pieces[piece][from] ^ ZOBRIST.pieces[piece][to]
                 && (ply > compared_ply || stack[index].repetition != 0)
+                && self.is_legal(Move::new(from, to, MoveKind::Normal))
             {
                 return true;
             }
