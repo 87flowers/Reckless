@@ -320,7 +320,7 @@ impl Board {
 
             if key_diff == ZOBRIST.side ^ ZOBRIST.pieces[piece][from] ^ ZOBRIST.pieces[piece][to]
                 && (ply > compared_ply || stack[index].repetition != 0)
-                && self.is_legal(Move::new(from, to, MoveKind::Normal))
+                && attacks(piece, from, self.state.occupancy).contains(to)
             {
                 return true;
             }
