@@ -100,7 +100,7 @@ impl Board {
         self.update_threats();
         self.validate_en_passant();
 
-        assert!(self.state.occupancy == self.occupancies());
+        debug_assert!(self.state.occupancy == self.occupancies());
 
         let end = self.state.plies_from_null.min(self.fiftymove_clock() as usize);
 

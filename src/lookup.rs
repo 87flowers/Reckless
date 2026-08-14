@@ -1,70 +1,8 @@
-use crate::types::{Bitboard, Color, Piece, PieceType, Square, ZOBRIST};
+use crate::types::{Bitboard, Color, Piece, PieceType, Square};
 
 include!(concat!(env!("OUT_DIR"), "/lookup.rs"));
 
-static mut CUCKOO: [u64; 0x2000] = [0; 0x2000];
-static mut A: [Square; 0x2000] = [Square::None; 0x2000];
-static mut B: [Square; 0x2000] = [Square::None; 0x2000];
-
-pub fn initialize() {
-    unsafe {
-        init_cuckoo();
-    }
-}
-
-unsafe fn init_cuckoo() {
-    for index in 2..12 {
-        let piece = Piece::from_index(index);
-
-        debug_assert!(piece.piece_type() != PieceType::Pawn);
-
-        for a in 0..64 {
-            for b in (a + 1)..64 {
-                let mut a = Square::new(a);
-                let mut b = Square::new(b);
-
-                if !attacks(piece, a, Bitboard(0)).contains(b) {
-                    continue;
-                }
-
-                let mut mv = ZOBRIST.pieces[piece][a] ^ ZOBRIST.pieces[piece][b] ^ ZOBRIST.side;
-                let mut i = h1(mv);
-
-                loop {
-                    std::mem::swap(&mut CUCKOO[i], &mut mv);
-                    std::mem::swap(&mut A[i], &mut a);
-                    std::mem::swap(&mut B[i], &mut b);
-
-                    if a == Square::None && b == Square::None {
-                        break;
-                    }
-
-                    i = if i == h1(mv) { h2(mv) } else { h1(mv) };
-                }
-            }
-        }
-    }
-}
-
-pub const fn h1(h: u64) -> usize {
-    ((h >> 32) & 0x1fff) as usize
-}
-
-pub const fn h2(h: u64) -> usize {
-    ((h >> 48) & 0x1fff) as usize
-}
-
-pub fn cuckoo(index: usize) -> u64 {
-    unsafe { CUCKOO[index] }
-}
-
-pub fn cuckoo_a(index: usize) -> Square {
-    unsafe { A[index] }
-}
-
-pub fn cuckoo_b(index: usize) -> Square {
-    unsafe { B[index] }
-}
+pub fn initialize() {}
 
 pub fn relative_diagonal(color: Color, sq: Square) -> Bitboard {
     unsafe { Bitboard(*DIAGONALS[color as usize].get_unchecked(sq as usize)) }

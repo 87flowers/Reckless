@@ -1,8 +1,5 @@
 use crate::{
-    lookup::{
-        attacks, between, bishop_attacks, cuckoo, cuckoo_a, cuckoo_b, h1, h2, king_attacks, knight_attacks,
-        pawn_attacks, ray_pass, rook_attacks,
-    },
+    lookup::{attacks, between, bishop_attacks, king_attacks, knight_attacks, pawn_attacks, ray_pass, rook_attacks},
     setwise::{bishop_attacks_setwise, knight_attacks_setwise, pawn_attacks_setwise, rook_attacks_setwise},
     types::{
         Bitboard, Castling, CastlingKind, Color, File, Keys, Move, PAWN_HOME_RANK, PROMO_RANK, Piece, PieceType,
@@ -292,11 +289,6 @@ impl Board {
     }
 
     /// Checks if the current position has a move that leads to a draw by repetition.
-    ///
-    /// This method uses a cuckoo hashing algorithm as described in M. N. J. van Kervinck's
-    /// paper to detect cycles one ply before they appear in the search of a game tree.
-    ///
-    /// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
     pub fn upcoming_repetition(&self, ply: usize) -> bool {
         let half_moves = self.state.plies_from_null.min(self.fiftymove_clock() as usize);
         if half_moves < 3 {
