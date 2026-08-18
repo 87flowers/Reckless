@@ -1123,7 +1123,7 @@ fn search<NODE: NodeType>(
     if !NODE::ROOT && bound == Bound::Upper && (cut_node || NODE::PV) {
         let prior_move = td.stack[ply - 1].mv;
         if prior_move.is_quiet() {
-            let factor = 88
+            let factor = 158 - 140 * ((td.stack[ply - 1].move_count <= 1) as i32)
                 + (17 * td.stack[ply - 1].move_count as i32).min(229)
                 + 110 * (prior_move == td.stack[ply - 1].tt_move) as i32
                 + 144 * (!in_check && best_score <= eval - 97) as i32
