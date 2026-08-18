@@ -264,8 +264,8 @@ pub fn start(td: &mut ThreadData, report: Report, thread_count: usize) {
                 (0.7426 + 0.0480 * difference).clamp(0.7214, 1.4031)
             };
 
-            let pv0_stability = (1.1510 - 0.0209 * pv0_stability as f32).max(0.8000);
-            let pv1_stability = (1.1510 - 0.0209 * pv1_stability as f32).max(0.8950);
+            let pv0_stability = (1.1350 - 0.0193 * pv0_stability as f32).max(0.8000);
+            let pv1_stability = (1.1350 - 0.0193 * pv1_stability as f32).max(0.8950);
 
             let eval_stability = (1.2664 - 0.0416 * eval_stability as f32).max(0.8642);
 
