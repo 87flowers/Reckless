@@ -322,7 +322,7 @@ fn search<NODE: NodeType>(
     }
 
     let draw_score = draw(td);
-    if !NODE::ROOT && alpha < draw_score && td.board.upcoming_repetition(ply as usize) {
+    if !NODE::ROOT && alpha < draw_score && !excluded && td.board.upcoming_repetition(ply as usize) {
         alpha = draw_score;
         if alpha >= beta {
             return alpha;
