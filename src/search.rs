@@ -858,6 +858,7 @@ fn search<NODE: NodeType>(
                 reduction += 2171;
                 reduction -= 179 * history / 1024;
                 reduction += 418 * ((alpha - estimated_score).clamp(-65, 91)) / 128;
+                reduction += 100 * (ply as i32 * depth) / 1024;
             } else {
                 reduction += 1426;
                 reduction -= 130 * history / 1024;
