@@ -926,6 +926,7 @@ fn search<NODE: NodeType>(
             if is_quiet {
                 reduction += 1468;
                 reduction -= 118 * history / 1024;
+                reduction += 100 * (ply as i32 * depth) / 1024;
             } else {
                 reduction += 940;
                 reduction -= 63 * history / 1024;
