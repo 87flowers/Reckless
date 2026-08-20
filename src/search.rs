@@ -1061,7 +1061,7 @@ fn search<NODE: NodeType>(
         return if in_check { mated_in(ply) } else { draw(td) };
     }
 
-    if bound == Bound::Lower {
+    if best_move.is_present() {
         let noisy_bonus = (96 * depth).min(885) - 43 - 87 * cut_node as i32;
         let noisy_malus = (175 * depth).min(1252) - 58 - 16 * noisy_moves.len() as i32;
 
@@ -1072,17 +1072,26 @@ fn search<NODE: NodeType>(
         let cont_malus = (414 * depth).min(949) - 49 - 17 * quiet_moves.len() as i32;
 
         if best_move.is_noisy() {
-            td.noisy_history.update(
-                td.board.all_threats(),
-                td.board.moved_piece(best_move),
-                best_move.to(),
-                td.board.type_on(best_move.to()),
-                noisy_bonus,
-            );
+            if bound == Bound::Lower {
+                td.noisy_history.update(
+                    td.board.all_threats(),
+                    td.board.moved_piece(best_move),
+                    best_move.to(),
+                    td.board.type_on(best_move.to()),
+                    noisy_bonus,
+                );
+            }
         } else {
-            td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
-            td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(best_move), best_move.to(), quiet_bonus);
-            update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
+            if bound == Bound::Lower {
+                td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
+                td.pawn_history.update(
+                    td.board.pawn_key(),
+                    td.board.moved_piece(best_move),
+                    best_move.to(),
+                    quiet_bonus,
+                );
+                update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
+            }
 
             for (i, &mv) in quiet_moves.iter().enumerate() {
                 let denom = 1024 + 45 * i as i32;
