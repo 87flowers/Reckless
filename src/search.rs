@@ -1061,7 +1061,7 @@ fn search<NODE: NodeType>(
         return if in_check { mated_in(ply) } else { draw(td) };
     }
 
-    if best_move.is_present() {
+    if bound == Bound::Lower {
         let noisy_bonus = (96 * depth).min(885) - 43 - 87 * cut_node as i32;
         let noisy_malus = (175 * depth).min(1252) - 58 - 16 * noisy_moves.len() as i32;
 
