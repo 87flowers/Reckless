@@ -735,6 +735,9 @@ fn search<NODE: NodeType>(
     // Low Depth Singular Extensions (LDSE)
     else if depth <= 7 && !in_check && cut_node && estimated_score <= alpha - 25 {
         extension = 1;
+        if !NODE::PV && tt_bound == Bound::Lower && tt_move.is_quiet() && tt_depth >= depth - 4 {
+            extension += 1;
+        }
     }
 
     let mut best_move = Move::NULL;
