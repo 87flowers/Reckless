@@ -884,6 +884,8 @@ fn search<NODE: NodeType>(
 
             if NODE::PV {
                 reduction -= 519 + 437 * (beta - alpha) / td.root_delta;
+            } else {
+                reduction -= 96 - 32 * td.stack[ply].laterality;
             }
 
             if tt_pv {
