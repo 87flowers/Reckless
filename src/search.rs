@@ -592,6 +592,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
+        td.stack[ply].laterality = 0;
 
         td.board.make_null_move();
         td.shared.tt.prefetch(td.board.hash());
@@ -650,7 +651,7 @@ fn search<NODE: NodeType>(
                 continue;
             }
 
-            make_move(td, ply, mv);
+            make_move(td, ply, mv, 0);
 
             let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
 
@@ -778,7 +779,6 @@ fn search<NODE: NodeType>(
         current_search_count = 0;
 
         move_count += 1;
-        td.stack[ply].move_count = move_count;
 
         let is_quiet = mv.is_quiet();
         let is_direct_check = td.board.is_direct_check(mv);
@@ -853,7 +853,7 @@ fn search<NODE: NodeType>(
 
         let initial_nodes = td.nodes();
 
-        make_move(td, ply, mv);
+        make_move(td, ply, mv, move_count as i32);
 
         let mut new_depth = depth - 1 + if move_count == 1 { extension } else { 0 };
         let mut score = Score::ZERO;
@@ -1342,7 +1342,7 @@ fn qsearch<NODE: NodeType>(td: &mut ThreadData, mut alpha: i32, beta: i32, ply: 
             }
         }
 
-        make_move(td, ply, mv);
+        make_move(td, ply, mv, move_count);
         let score = -qsearch::<NODE>(td, -beta, -alpha, ply + 1);
         undo_move(td, mv);
 
@@ -1459,7 +1459,7 @@ fn update_continuation_histories(td: &mut ThreadData, ply: isize, piece: Piece, 
     }
 }
 
-fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
+fn make_move(td: &mut ThreadData, ply: isize, mv: Move, move_count: i32) {
     td.shared.tt.prefetch(td.board.key_after(mv));
     td.stack[ply].mv = mv;
     td.stack[ply].piece = td.board.moved_piece(mv);
@@ -1467,6 +1467,9 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move) {
         td.continuation_history.subtable_ptr(td.board.in_check(), mv.is_noisy(), td.board.moved_piece(mv), mv.to());
     td.stack[ply].contcorrhist =
         td.continuation_corrhist.subtable_ptr(td.board.in_check(), mv.is_noisy(), td.board.moved_piece(mv), mv.to());
+    td.stack[ply].move_count = move_count as u16;
+    td.stack[ply].laterality = if ply > 0 { td.stack[ply - 1].laterality } else { 0 }
+        + if move_count > 0 { (move_count.ilog2() as i32 - 1).max(0) } else { 0 };
 
     td.shared.nodes.increment(td.id);
 

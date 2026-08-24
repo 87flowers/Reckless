@@ -41,6 +41,7 @@ pub struct StackEntry {
     pub tt_pv: bool,
     pub move_count: u16,
     pub reduction: i32,
+    pub laterality: i32,
     pub conthist: *mut [[i16; 64]; 13],
     pub contcorrhist: *mut [[i16; 64]; 13],
 }
@@ -57,6 +58,7 @@ impl Default for StackEntry {
             tt_pv: false,
             move_count: 0,
             reduction: 0,
+            laterality: 0,
             conthist: std::ptr::null_mut(),
             contcorrhist: std::ptr::null_mut(),
         }
