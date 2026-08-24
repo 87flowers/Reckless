@@ -592,7 +592,7 @@ fn search<NODE: NodeType>(
         td.stack[ply].contcorrhist = td.stack.sentinel().contcorrhist;
         td.stack[ply].piece = Piece::None;
         td.stack[ply].mv = Move::NULL;
-        td.stack[ply].laterality = 0;
+        td.stack[ply].laterality = td.stack[ply - 1].laterality;
 
         td.board.make_null_move();
         td.shared.tt.prefetch(td.board.hash());
@@ -885,7 +885,8 @@ fn search<NODE: NodeType>(
             if NODE::PV {
                 reduction -= 519 + 437 * (beta - alpha) / td.root_delta;
             } else {
-                reduction -= 96 - 32 * td.stack[ply].laterality;
+                reduction -= 150 - 100 * td.stack[ply].laterality / ply as i32;
+                dbg_stats(reduction, 1);
             }
 
             if tt_pv {
@@ -1470,8 +1471,7 @@ fn make_move(td: &mut ThreadData, ply: isize, mv: Move, move_count: i32) {
     td.stack[ply].contcorrhist =
         td.continuation_corrhist.subtable_ptr(td.board.in_check(), mv.is_noisy(), td.board.moved_piece(mv), mv.to());
     td.stack[ply].move_count = move_count as u16;
-    td.stack[ply].laterality = if ply > 0 { td.stack[ply - 1].laterality } else { 0 }
-        + if move_count > 0 { (move_count.ilog2() as i32 - 1).max(0) } else { 0 };
+    td.stack[ply].laterality = if ply > 0 { td.stack[ply - 1].laterality } else { 0 } + (move_count + 1).ilog2() as i32;
 
     td.shared.nodes.increment(td.id);
 
