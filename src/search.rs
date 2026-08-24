@@ -886,7 +886,6 @@ fn search<NODE: NodeType>(
                 reduction -= 519 + 437 * (beta - alpha) / td.root_delta;
             } else {
                 reduction -= 150 - 100 * td.stack[ply].laterality / ply as i32;
-                dbg_stats(reduction, 1);
             }
 
             if tt_pv {
