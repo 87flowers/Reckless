@@ -110,16 +110,17 @@ struct Cluster {
     keys: u64,
 }
 
-type VerificationKey = u32;
+#[derive(Copy, Clone, PartialEq, Eq)]
+struct VerificationKey(u32);
 
 /// Returns the verification key of the hash (bottom 21 bits).
 const fn verification_key(hash: u64) -> VerificationKey {
-    (hash & Cluster::KEY_MASK) as VerificationKey
+    VerificationKey((hash & Cluster::KEY_MASK) as u32)
 }
 
 impl Cluster {
     const KEY_BITS: usize = 21;
-    const KEY_MASK: u64 = 0x1FFFFF;
+    const KEY_MASK: u64 = (1 << Self::KEY_BITS) - 1;
 
     const fn key(&self, index: usize) -> VerificationKey {
         verification_key(self.keys >> (index * Self::KEY_BITS))
@@ -127,12 +128,12 @@ impl Cluster {
 
     const fn set_key(&mut self, index: usize, key: VerificationKey) {
         self.keys &= !(Self::KEY_MASK << (index * Self::KEY_BITS));
-        self.keys |= (key as u64) << (index * Self::KEY_BITS);
+        self.keys |= (key.0 as u64) << (index * Self::KEY_BITS);
     }
 
     const fn lookup_key(&self, key: VerificationKey) -> usize {
-        let bits = 1 | (1 << Self::KEY_BITS) | (1 << (Self::KEY_BITS * 2));
-        let needle = key as u64 * bits;
+        let bits = 1 | (1 << Self::KEY_BITS) | (1 << (Self::KEY_BITS * 2)) | (1 << (Self::KEY_BITS * 3));
+        let needle = key.0 as u64 * bits;
         let zeros = self.keys ^ needle;
         let matches = zeros.wrapping_sub(bits) & !zeros & (bits << (Self::KEY_BITS - 1));
         matches.trailing_zeros() as usize / Self::KEY_BITS
