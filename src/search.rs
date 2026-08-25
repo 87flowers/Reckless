@@ -1172,7 +1172,7 @@ fn search<NODE: NodeType>(
 
             td.noisy_history.update(
                 td.board.prior_threats(),
-                td.board.piece_on(prior_move.to()),
+                td.stack[ply - 1].piece,
                 prior_move.to(),
                 captured_type,
                 bonus,
