@@ -132,7 +132,7 @@ impl Cluster {
     }
 
     const fn lookup_key(&self, key: VerificationKey) -> usize {
-        let bits = 1 | (1 << Self::KEY_BITS) | (1 << (Self::KEY_BITS * 2)) | (1 << (Self::KEY_BITS * 3));
+        let bits = 1 | (1 << Self::KEY_BITS) | (1 << (Self::KEY_BITS * 2));
         let needle = key.0 as u64 * bits;
         let zeros = self.keys ^ needle;
         let matches = zeros.wrapping_sub(bits) & !zeros & (bits << (Self::KEY_BITS - 1));
