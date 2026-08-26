@@ -211,7 +211,7 @@ impl Board {
     }
 
     pub fn moved_piece(&self, mv: Move) -> Piece {
-        self.mailbox[mv.from()]
+        if mv.is_promotion() { Piece::new(self.side_to_move(), mv.promo_piece_type()) } else { self.mailbox[mv.from()] }
     }
 
     pub const fn set_frc(&mut self, frc: bool) {
