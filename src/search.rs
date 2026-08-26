@@ -1166,13 +1166,13 @@ fn search<NODE: NodeType>(
                 let bonus = (152 * depth - 47).min(1379);
                 td.continuation_history.update(entry.conthist, td.stack[ply - 1].piece, prior_move.to(), bonus);
             }
-        } else if prior_move.is_noisy() {
+        } else if prior_move.is_noisy() && !prior_move.is_promotion() {
             let captured_type = td.board.captured_piece().piece_type();
             let bonus = (50 * depth).min(654);
 
             td.noisy_history.update(
                 td.board.prior_threats(),
-                td.stack[ply - 1].piece,
+                td.board.piece_on(prior_move.to()),
                 prior_move.to(),
                 captured_type,
                 bonus,
