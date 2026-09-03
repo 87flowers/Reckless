@@ -653,12 +653,15 @@ fn search<NODE: NodeType>(
 
             make_move(td, ply, mv, 0);
 
-            let mut score = -qsearch::<NonPV>(td, -probcut_beta, -probcut_beta + 1, ply + 1);
+            let initial_beta =
+                probcut_beta + if mv.is_promotion() && mv.promo_piece_type() == PieceType::Queen { -60 } else { 0 };
+
+            let mut score = -qsearch::<NonPV>(td, -initial_beta, -initial_beta + 1, ply + 1);
 
             let base_depth = (depth - 4 - improving as i32).max(0);
             let mut probcut_depth = (base_depth - (score - probcut_beta) / 319).clamp(0, base_depth);
 
-            if score >= probcut_beta && probcut_depth > 0 {
+            if score >= initial_beta && probcut_depth > 0 {
                 let adjusted_beta = (probcut_beta + 197 * (base_depth - probcut_depth)).min(Score::INFINITE);
 
                 score = -search::<NonPV>(
