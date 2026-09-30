@@ -405,6 +405,10 @@ fn search<NODE: NodeType>(
                 return tt_score;
             }
         }
+
+        if tt_move.is_present() {
+            td.shared.tt.prefetch(td.board.key_after(tt_move));
+        }
     }
 
     // Tablebases Probe
