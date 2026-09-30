@@ -44,6 +44,7 @@ pub struct StackEntry {
     pub laterality: i32,
     pub conthist: *mut [[i16; 64]; 13],
     pub contcorrhist: *mut [[i16; 64]; 13],
+    pub killer: Move,
 }
 
 unsafe impl Send for StackEntry {}
@@ -61,6 +62,7 @@ impl Default for StackEntry {
             laterality: 0,
             conthist: std::ptr::null_mut(),
             contcorrhist: std::ptr::null_mut(),
+            killer: Move::NULL,
         }
     }
 }

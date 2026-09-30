@@ -486,6 +486,7 @@ fn search<NODE: NodeType>(
     td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].reduction = 0;
     td.stack[ply].move_count = 0;
+    td.stack[ply + 1].killer = Move::NULL;
     td.cutoff_count[ply + 2] = 0;
 
     // Quiet move ordering using eval difference
@@ -752,6 +753,13 @@ fn search<NODE: NodeType>(
     }
     // Low Depth Singular Extensions (LDSE)
     else if depth <= 7 && !in_check && cut_node && estimated_score <= alpha - 25 {
+        extension = 1;
+    }
+    // Killer Extensions
+    else if tt_move.is_present()
+        && tt_move == td.stack[ply].killer
+        && td.conthist(ply, 1, tt_move) + td.conthist(ply, 2, tt_move) > 1024
+    {
         extension = 1;
     }
 
@@ -1108,6 +1116,8 @@ fn search<NODE: NodeType>(
                 noisy_bonus,
             );
         } else {
+            td.stack[ply].killer = best_move;
+
             td.quiet_history.update(td.board.all_threats(), stm, best_move, quiet_bonus);
             td.pawn_history.update(td.board.pawn_key(), td.board.moved_piece(best_move), best_move.to(), quiet_bonus);
             update_continuation_histories(td, ply, td.board.moved_piece(best_move), best_move.to(), cont_bonus);
