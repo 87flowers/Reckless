@@ -755,13 +755,6 @@ fn search<NODE: NodeType>(
     else if depth <= 7 && !in_check && cut_node && estimated_score <= alpha - 25 {
         extension = 1;
     }
-    // Killer Extensions
-    else if tt_move.is_present()
-        && tt_move == td.stack[ply].killer
-        && td.conthist(ply, 1, tt_move) + td.conthist(ply, 2, tt_move) > 1024
-    {
-        extension = 1;
-    }
 
     let mut best_move = Move::NULL;
     let mut bound = Bound::Upper;
@@ -790,6 +783,7 @@ fn search<NODE: NodeType>(
 
         let is_quiet = mv.is_quiet();
         let is_direct_check = td.board.is_direct_check(mv);
+        let is_killer = td.stack[ply].killer == mv;
 
         let history = if is_quiet {
             td.quiet_history.get(td.board.all_threats(), stm, mv) + td.conthist(ply, 1, mv) + td.conthist(ply, 2, mv)
@@ -816,6 +810,7 @@ fn search<NODE: NodeType>(
                 + 55 * history / 1024
                 + 77 * (eval >= beta) as i32
                 + 555 * correction_value.abs() / 1024
+                + 32 * is_killer as i32
                 - 127;
 
             if !in_check && !is_direct_check && is_quiet && depth < 14 && futility_value <= alpha {
